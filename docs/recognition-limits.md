@@ -1,0 +1,104 @@
+# Recognition: what was measured, and what the system can and cannot do
+
+This page records the evidence behind the recognition settings and the limits we state in the report. All numbers
+come from runs on the development laptop in October 2026. The samples are **small**, so treat them as indications,
+not as an accuracy claim. The final accuracy test with real students and the real webcam is still to be done
+(SRS NFR-02).
+
+## Terms (they are different things)
+
+| Term | Meaning here |
+|---|---|
+| Face detection | Finding that a face is in the picture (dlib HOG detector). Says nothing about who it is. |
+| Face recognition | Comparing the 128-number encoding of the live face with stored encodings (dlib / `face_recognition`). |
+| Eye-region (periocular) recognition | Comparing a texture description (LBP histograms) of the skin around the eyes. |
+| Iris recognition | Reading the iris pattern. **Not implemented**: it needs near-infrared iris imaging that a laptop camera cannot provide. |
+| Liveness (blink) check | Checking that the eyes close and reopen across a burst of frames. |
+
+## 1. Face recognition: the threshold
+
+Encoding distances measured on 7 public photos of 4 people (one person has 4 different photos):
+
+| Comparison | Distances |
+|---|---|
+| Same person, different photos | 0.05 to 0.37 |
+| Different people (15 pairs) | 0.71 to 0.90 (median 0.81) |
+
+The default threshold **0.5** (`FACE_THRESHOLD`, from the SRS; the library default is 0.6) lies in the gap with room
+on both sides. Caveats: only 4 people; photos are not webcam frames; twins and look-alikes will be closer.
+
+Safety rules on top of the threshold:
+
+* If two *different* students are both under the threshold and within 0.04 of each other (`FACE_MARGIN`), the
+  attempt is denied as inconclusive. We do not guess.
+* The same face cannot be enrolled for two students (checked at enrollment).
+* Only **active** students' templates are loaded for matching.
+
+## 2. Liveness (blink)
+
+* Method: eye aspect ratio (EAR) from dlib's 68 landmarks across about 30 frames (one every 110 ms). A blink is a
+  run of frames where EAR is clearly below the person's own normal (`BLINK_DROP_RATIO` 0.78) **and** below an absolute
+  limit (`BLINK_CLOSED_MAX_EAR` 0.25), with open-eyed frames before and after. Typical EAR is 0.22 to 0.41 for open
+  eyes (it differs a lot between people, hence the relative rule).
+* Tested with a **simulated** blink (eyes painted shut in a real face picture, EAR about 0.15) through the real
+  pipeline and through a real browser with a fake camera: the "blinking" person is admitted, a still picture
+  of the same person is denied (SRS test cases TC-01 and TC-03).
+* **Not yet tested with a real person blinking.** A real blink lasts 150 to 300 ms; the capture rate was chosen for that.
+* We found the blink measurement is sensitive to the processing size and to the exact face box: the same blink read
+  as EAR 0.15 at 640 and 560 px but 0.25 at 480 px. The system therefore finds faces at the full 640 px and uses a
+  median of three landmark readings. This costs about 2 seconds per attempt on the development laptop; the whole
+  decision takes about 3 to 4 seconds (SRS NFR-01 asks for 3 seconds on recommended hardware).
+* **Limit:** a blink check stops a still photograph. It does **not** stop a replayed video or a determined attacker.
+  This is not production-grade biometric security.
+
+## 3. Eye-region fallback: measured, and switched OFF by default
+
+SRS FR-06 asks for an eye-region fallback when the face cannot be matched or is covered. We built and tested it, and
+measured whether it is reliable enough to trust:
+
+| Test | Result |
+|---|---|
+| Eye-region template (LBP) distance, same person vs different people | Same person: 0.140. Different people: min 0.117, median 0.486, max 1.123 (14 pairs). The same-person distance is **not smaller** than the closest different person, so the template cannot separate people reliably. |
+| Lower half of the face covered (a white rectangle over nose and mouth) | dlib found a face in 0 of 5 pictures; OpenCV's Haar face detector found one in 1 of 5 and no eyes in any. With the specified libraries the eyes of a covered face could not even be located. |
+
+Conclusion: eye-region comparison with the specified stack is **not reliable enough to identify a person**, and the
+"covered face" case could not be made to work. Therefore:
+
+* `EYE_FALLBACK_ENABLED` is **0 (off)** by default. A face that does not match is simply denied.
+* If switched on, it can only **confirm a borderline face match for the same student** (face distance between 0.5 and
+  0.6, eye templates agree with a strict threshold and clear margin). It never identifies anyone by itself, it never
+  runs without the blink check passing, and every such entry is flagged for warden review.
+* The SRS targets (75 percent eye-region accuracy with false acceptance under 5 percent) were not reached and are not
+  claimed. This should be stated in the report as a finding, with the limits above.
+
+## 4. What happens to each outcome
+
+| Outcome | Result | Logged as |
+|---|---|---|
+| Blink seen, face matches one student clearly | Access granted | Granted, student, method Face |
+| No blink | Denied | Denied, no student, `liveness_failed` |
+| Face not in the enrolled set | Denied | Denied, no student, `not_recognized` |
+| Two students match equally | Denied | Denied, no student, `ambiguous` |
+| No face / several faces / too dark / blurry / too far | Denied | Denied, no student, matching code |
+| Camera missing, blocked or busy | Message on the terminal | Not logged (no attempt reached the server) |
+
+A denied attempt is never attributed to a student, even when the face looked like one: a photograph of student X must
+not be recorded as "X failed".
+
+## 5. What still needs a real person and a real webcam
+
+1. Does a normal blink in front of the laptop camera reliably pass (with glasses, with different people)?
+2. Are the brightness and sharpness limits right for this camera in the hostel's lighting?
+3. Accuracy over many students: false accepts and false rejects (SRS NFR-02).
+4. Time from the end of capture to the decision on the gate computer.
+
+## 6. Guests
+
+* A guest is matched with the **same threshold and blink check** as a student, but **never with the eye-region fallback**.
+* A face that matches both a student and a guest (or two guests about equally) is denied as inconclusive.
+* Enrollment refuses to register a guest whose face matches a student, so a guest cannot inherit student access.
+* A recognised guest whose visit rules fail (not approved, expired, already used, host inactive) is refused and the attempt is
+  logged against that guest, because recognition and the blink check both succeeded. A failed blink or an unknown face is never
+  attributed to anyone.
+* Not yet tested with real people: how well two different real guests are separated, and how a guest's face holds up against
+  lighting differences between registration and arrival.
