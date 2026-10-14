@@ -1,0 +1,24 @@
+# Environments and secrets
+.venv/
+venv/
+.env
+
+# Local data (databases may contain student and biometric data)
+instance/
+*.db
+*.sqlite3
+uploads/
+captures/
+
+# Python / tooling caches
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
