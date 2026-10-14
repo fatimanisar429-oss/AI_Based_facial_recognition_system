@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_macros.html" import form_field, select_field %}
+{% block title %}{{ title }} - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ title }}</h1>
+  <p>{% if mode == 'new' %}Create the account. The warden can log in with this email and password.{% else %}Update the details. Leave the password empty to keep the current one.{% endif %}</p>
+</div>
+
+{% if errors %}
+  <div class="alert alert-danger" role="alert">Please fix the {{ errors|length }} highlighted field{{ 's' if errors|length > 1 }} below.</div>
+{% endif %}
+
+<form method="post" novalidate data-once class="form-narrow"
+      action="{{ url_for('wardens.create') if mode == 'new' else url_for('wardens.edit', warden_id=warden_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <section class="app-card">
+    <div class="card-body-pad pt-4">
+      {{ form_field("full_name", "Full name", value=v.full_name, error=errors.full_name, autofocus=True, maxlength=100) }}
+      {{ form_field("email", "Email", type="email", value=v.email, error=errors.email, autocomplete="off", maxlength=100, hint="Used to log in.") }}
+      {{ form_field("phone", "Phone number", type="tel", value=v.phone, error=errors.phone, placeholder="+92 300 1234567") }}
+      {{ select_field("gender", "Gender", gender_options, value=v.gender, error=errors.gender, blank_label="Select...") }}
+      {{ form_field("password", "Password" if mode == 'new' else "New password", type="password", required=(mode == 'new'),
+                    error=errors.password, autocomplete="new-password", maxlength=128,
+                    hint="At least 8 characters." ~ (" Leave empty to keep the current password." if mode == 'edit' else "")) }}
+    </div>
+  </section>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary" data-loading-text="Saving...">{{ 'Add warden' if mode == 'new' else 'Save changes' }}</button>
+    <a class="btn btn-outline-secondary"
+       href="{{ url_for('wardens.index') if mode == 'new' else url_for('wardens.detail', warden_id=warden_id) }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

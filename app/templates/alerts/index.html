@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_header, empty_state, status_badge, pager, date_range_fields %}
+{% from "_icons.html" import icon %}
+{% block title %}Alerts - Hostel Security{% endblock %}
+{% block content %}
+{{ page_header("Alerts", "Emergency alerts from students and automatic security alerts. " ~ ("Acknowledge an alert when you have dealt with it." if current_user.role == 'warden' else "Wardens acknowledge alerts; you can view them here.")) }}
+
+<section class="app-card">
+  <form method="get" action="{{ url_for('alerts.index') }}" class="filter-bar" role="search">
+    <div>
+      <label for="type" class="visually-hidden">Type</label>
+      <select id="type" name="type" class="form-select">
+        <option value="">All types</option>
+        {% for t in types %}<option value="{{ t }}" {% if args.type == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="status" class="visually-hidden">Status</label>
+      <select id="status" name="status" class="form-select">
+        <option value="">All statuses</option>
+        {% for s in statuses %}<option value="{{ s }}" {% if args.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+    {{ date_range_fields({'from': args['from'] or '', 'to': args['to'] or ''}) }}
+    <button type="submit" class="btn btn-primary">Filter</button>
+    {% if args.type or args.status or args['from'] %}<a href="{{ url_for('alerts.index') }}" class="btn btn-outline-secondary">Clear</a>{% endif %}
+  </form>
+
+  {% if result.rows %}
+  <div class="table-responsive">
+    <table class="table app-table align-middle">
+      <thead><tr><th>Time</th><th>Type</th><th>Details</th><th>Status</th>{% if current_user.role == 'warden' %}<th class="text-end">Action</th>{% endif %}</tr></thead>
+      <tbody>
+      {% for a in result.rows %}
+        <tr>
+          <td class="text-nowrap">{{ a.created_at|localtime("%d %b %Y, %I:%M %p") }}</td>
+          <td><span class="pill {{ 'pill-bad' if a.alert_type == 'Emergency' else 'pill-warn' }}">{{ a.alert_type }}</span></td>
+          <td>
+            {% if a.alert_type == 'Emergency' %}<strong>{{ a.student_name or 'Unknown student' }}</strong>{% if a.room_no %} &middot; Room {{ a.room_no }}{% endif %}<div class="small text-muted">{{ a.message }}</div>
+            {% else %}{{ a.message }}{% endif %}
+          </td>
+          <td>{{ status_badge(a.status) }}
+            {% if a.status == 'Acknowledged' %}<div class="small text-muted">by {{ a.acknowledged_by or '-' }}<br>{{ a.acknowledged_at|localtime("%d %b, %I:%M %p") }}</div>{% endif %}</td>
+          {% if current_user.role == 'warden' %}
+          <td class="text-end">
+            {% if a.status == 'New' %}
+            <form method="post" action="{{ url_for('alerts.acknowledge', alert_id=a.alert_id) }}" class="d-inline" data-once>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="btn btn-sm btn-primary" data-loading-text="Saving...">Acknowledge</button>
+            </form>
+            {% endif %}
+          </td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ pager(result, 'alerts.index', args) }}
+  {% else %}
+    {{ empty_state("No alerts", "Emergency alerts and security alerts will appear here.", "bell") }}
+  {% endif %}
+</section>
+<p class="small text-muted mt-3">A security alert is raised automatically after {{ threshold }} failed entry attempts (blink check failed, face not recognised, or an inconclusive match) within {{ window }} minutes at the gate. The people cannot be identified, so no student is named. Only one alert is raised per {{ window }}-minute period.</p>
+{% endblock %}

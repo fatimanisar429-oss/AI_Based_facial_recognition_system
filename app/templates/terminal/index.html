@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon, logo %}
+{% block title %}Entry terminal - Hostel Security{% endblock %}
+
+{# The terminal is a full-screen kiosk page: no sidebar, big text, nothing to type. #}
+{% block body %}
+<div class="kiosk" id="terminal"
+     data-verify-url="{{ url_for('terminal.verify') }}" data-csrf="{{ csrf_token() }}"
+     data-frames="{{ frame_count }}" data-interval="{{ interval }}" data-disabled="{{ '1' if key_problem else '0' }}">
+
+  <header class="kiosk-bar">
+    <div class="kiosk-brand">{{ logo(34) }}<span>Hostel Entry Terminal</span></div>
+    <div class="kiosk-clock" aria-live="off"><span id="clock-date"></span> <strong id="clock-time"></strong></div>
+    <a class="kiosk-staff" href="{{ url_for('auth.login') }}">Staff login</a>
+  </header>
+
+  {% if key_problem %}
+    <div class="alert alert-danger m-3" role="alert"><strong>Terminal not configured.</strong> {{ key_problem }}</div>
+  {% endif %}
+
+  <main class="kiosk-main">
+    <section class="kiosk-camera" aria-label="Camera">
+      <div class="cam-box" id="cam-box">
+        <video id="cam-video" autoplay playsinline muted aria-label="Live camera preview"></video>
+        <div class="cam-guide" aria-hidden="true"></div>
+        <div class="cam-placeholder" id="cam-placeholder">
+          {{ icon('camera', 38) }}
+          <p>Press <strong>Start verification</strong>, look at the camera and blink twice.</p>
+        </div>
+        <div class="cam-overlay" id="cam-overlay" hidden>
+          <div id="overlay-text"></div>
+          <div class="progress" role="progressbar" aria-label="Capture progress"><div class="progress-bar" id="capture-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary btn-lg kiosk-start" id="btn-start">{{ icon('camera', 22) }} Start verification</button>
+      <p class="kiosk-privacy">The camera is on only while verifying. Pictures are not stored.</p>
+    </section>
+
+    <section class="kiosk-side" aria-label="Verification status">
+      <div class="app-card kiosk-card" id="result-card" data-result="idle">
+        <div class="door" id="door" aria-hidden="true">
+          <svg viewBox="0 0 64 64" class="door-svg" role="img" aria-label="Door lock">
+            <path class="door-shackle" d="M20 28v-8a12 12 0 0 1 24 0v8" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+            <rect x="12" y="28" width="40" height="28" rx="6" fill="currentColor"/>
+            <circle cx="32" cy="42" r="4" fill="#fff"/>
+          </svg>
+        </div>
+        <div class="result-title" id="result-title" role="status" aria-live="assertive">Ready</div>
+        <div class="result-name" id="result-name"></div>
+        <div class="result-detail" id="result-detail">Waiting for the next person.</div>
+        <div class="result-time" id="result-time"></div>
+      </div>
+
+      <div class="app-card kiosk-checks">
+        <h2>Checks</h2>
+        <ul class="check-list">
+          <li><span>Camera</span><span class="pill pill-muted" id="chip-camera">Off</span></li>
+          <li><span>Face detected</span><span class="pill pill-muted" id="chip-face">Waiting</span></li>
+          <li><span>Liveness (blink)</span><span class="pill pill-muted" id="chip-liveness">Waiting</span></li>
+          <li><span>Recognition</span><span class="pill pill-muted" id="chip-recognition">Waiting</span></li>
+          <li><span>Method</span><span class="pill pill-muted" id="chip-method">&mdash;</span></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/terminal.js') }}"></script>{% endblock %}

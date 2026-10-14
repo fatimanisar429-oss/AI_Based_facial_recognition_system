@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "_macros.html" import empty_state, status_badge %}
+{% from "_icons.html" import icon %}
+{% block title %}Guest requests - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
+  <div><h1>Guest requests</h1><p>Visits you asked for, and what the warden decided.</p></div>
+  <a href="{{ url_for('guests.new') }}" class="btn btn-primary">{{ icon('user-plus', 18) }} Request a guest visit</a>
+</div>
+<section class="app-card">
+  {% if rows %}
+  <div class="table-responsive">
+    <table class="table app-table align-middle">
+      <thead><tr><th>Guest</th><th>Visit</th><th>Purpose</th><th>Status</th><th>Entries</th><th></th></tr></thead>
+      <tbody>
+      {% for r in rows %}
+        <tr>
+          <td><div class="fw-medium">{{ r.guest_name }}</div><div class="small text-muted">{{ r.guest_contact }}</div></td>
+          <td class="text-nowrap">{{ r.valid_from|localtime("%d %b %Y") }}<div class="small text-muted">{{ r.valid_from|localtime("%I:%M %p") }} &ndash; {{ r.valid_to|localtime("%I:%M %p") }}</div></td>
+          <td>{{ r.purpose }}</td>
+          <td>{{ status_badge(status_of(r, now)) }}</td>
+          <td>{% if r.status == 'Approved' %}{{ r.entries_used }} of {{ r.max_entries }} used{% else %}&mdash;{% endif %}</td>
+          <td class="text-end"><a class="btn btn-outline-secondary btn-sm" href="{{ url_for('guests.mine_detail', request_id=r.request_id) }}">View</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {{ empty_state("No guest requests yet", "Use the button above to ask for a guest visit.", "user-plus") }}
+  {% endif %}
+</section>
+{% endblock %}

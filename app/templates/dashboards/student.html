@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_header, stat_tile, empty_state, status_badge %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ title }} - Hostel Security{% endblock %}
+{% block content %}
+{{ page_header(hello[0] ~ ", " ~ current_user.full_name.split()[0], hello[1] ~ " · Room " ~ current_user.room_no ~ " · " ~ current_user.department) }}
+
+<div class="row g-3 mb-3">
+  <div class="col-12 col-lg-6">
+    <div class="app-card today-card {{ 'is-in' if d.today else '' }}">
+      <div class="stat-icon tone-{{ 'green' if d.today and d.today.status == 'Present' else 'amber' if d.today else 'blue' }}">{{ icon('user-check' if d.today else 'clock', 24) }}</div>
+      <div>
+        <div class="stat-label">Today's attendance</div>
+        <div class="today-status">
+          {% if d.today %}{{ status_badge(d.today.status) }}{% else %}<span class="pill pill-muted">Not entered yet</span>{% endif %}
+        </div>
+        <div class="stat-hint">
+          {% if d.today %}First entry at {{ d.today.local_time }}{% else %}Curfew is {{ curfew }}. Enter before then to be marked Present.{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">{{ stat_tile("Present this month", d.month_present, None, "check-circle", "green") }}</div>
+  <div class="col-6 col-lg-3">{{ stat_tile("Late this month", d.month_late, None, "clock", "amber") }}</div>
+</div>
+
+<section class="app-card emergency-card mb-3" aria-labelledby="emg-h">
+  <div class="card-title-row"><h2 id="emg-h">Emergency</h2><a href="{{ url_for('alerts.mine') }}" class="btn btn-sm btn-outline-secondary">My alerts</a></div>
+  <div class="card-body-pad d-flex flex-wrap align-items-center gap-3">
+    <form method="post" action="{{ url_for('alerts.emergency') }}" class="m-0" data-confirm="Send an emergency alert to the warden? Use this only for a real emergency. It does not call the police or any emergency service." data-confirm-button="Send emergency alert">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="dashboard">
+      <button type="submit" class="btn btn-danger btn-lg">{{ icon('alert-triangle', 20) }} Emergency</button>
+    </form>
+    <span class="text-muted small">Alerts your warden and the emergency contacts by email. It does not call the police or any emergency service.</span>
+  </div>
+</section>
+
+<section class="app-card mb-3" aria-labelledby="guest-h">
+  <div class="card-title-row"><h2 id="guest-h">Guest visits</h2>
+    <div class="d-flex gap-2"><a href="{{ url_for('guests.mine') }}" class="btn btn-sm btn-outline-secondary">All requests</a>
+      <a href="{{ url_for('guests.new') }}" class="btn btn-sm btn-primary">{{ icon('user-plus', 16) }} Request a visit</a></div></div>
+  {% if guest_rows %}
+  <ul class="list-group list-group-flush">
+    {% for r in guest_rows %}
+    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+      <div><strong>{{ r.guest_name }}</strong><div class="small text-muted">{{ r.valid_from|localtime("%d %b %Y, %I:%M %p") }}</div></div>
+      {{ status_badge(status_of(r, now)) }}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    {{ empty_state("No guest requests", "Ask for a guest visit with the button above.", "user-plus") }}
+  {% endif %}
+</section>
+
+<section class="app-card" aria-labelledby="hist-h">
+  <div class="card-title-row"><h2 id="hist-h">My recent entry history</h2></div>
+  {% if d.history %}
+  <div class="table-responsive">
+    <table class="table app-table">
+      <thead><tr><th>Time</th><th>Method</th><th>Result</th></tr></thead>
+      <tbody>
+      {% for r in d.history %}
+        <tr>
+          <td class="text-nowrap">{{ r.attempted_at|localtime }}</td>
+          <td>{{ r.method }}</td>
+          <td>{{ status_badge(r.result) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {{ empty_state("No entry history yet", "Your entries will appear here once you use the entry terminal.", "list") }}
+  {% endif %}
+</section>
+{% endblock %}

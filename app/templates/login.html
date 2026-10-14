@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "_macros.html" import flash_messages %}
+{% from "_icons.html" import icon, logo, scan_illustration %}
+{% block title %}Log in - Hostel Security System{% endblock %}
+
+{# The login page has no sidebar, so it replaces the whole body block. #}
+{% block body %}
+<div class="login-split">
+  <section class="login-hero" aria-hidden="false">
+    <div class="hero-inner">
+      <div class="hero-brand">{{ logo(40) }}<span>Hostel Security</span></div>
+      {{ scan_illustration() }}
+      <h1>Secure hostel entry with face recognition</h1>
+      <ul class="hero-points">
+        <li>{{ icon('camera', 18) }} Verify students at the gate with a laptop camera</li>
+        <li>{{ icon('calendar', 18) }} Attendance and late entries recorded automatically</li>
+        <li>{{ icon('bell', 18) }} Instant alerts for wardens on repeated failures</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="login-panel">
+    <div class="login-card">
+      <div class="login-logo-mobile d-lg-none">{{ logo(44) }}</div>
+      <h2>Welcome back</h2>
+      <p class="text-muted">Sign in with your hostel account.</p>
+
+      {{ flash_messages() }}
+      {% if error %}<div class="alert alert-danger" role="alert">{{ error }}</div>{% endif %}
+
+      <form method="post" action="{{ url_for('auth.login') }}" novalidate data-once>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="mb-3">
+          <label for="email" class="form-label">Email</label>
+          <input id="email" name="email" type="email" class="form-control form-control-lg" value="{{ email or '' }}"
+                 autocomplete="username" placeholder="you@example.com" required autofocus>
+        </div>
+        <div class="mb-4">
+          <label for="password" class="form-label">Password</label>
+          <div class="input-group input-group-lg">
+            <input id="password" name="password" type="password" class="form-control"
+                   autocomplete="current-password" required>
+            <button class="btn btn-outline-secondary" type="button" data-toggle-password="password"
+                    aria-pressed="false" aria-label="Show or hide password">Show</button>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg w-100" data-loading-text="Signing in...">Log in</button>
+      </form>
+      {% if dev_quick %}
+      {# LOCAL TESTING ONLY. Shown when DEV_QUICK_LOGIN=1 and the page is opened on the computer running the app. #}
+      <div class="dev-panel" id="dev-panel">
+        <div class="dev-title">{{ icon('alert-triangle', 16) }} Local testing only</div>
+        <p>One-click sign-in with the demo accounts. It works only on this computer and must be switched off before real use.</p>
+        <div class="dev-buttons">
+          {% for target, label, hint in [("admin", "Admin", "dashboard"), ("warden", "Warden", "dashboard"), ("student", "Student", "dashboard"), ("enroll", "Register a face", "admin, then enrollment")] %}
+          <form method="post" action="{{ url_for('auth.dev_login', target=target) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-secondary w-100 text-start" data-dev="{{ target }}">
+              <strong>{{ label }}</strong><span class="d-block small text-muted">{{ hint }}</span>
+            </button>
+          </form>
+          {% endfor %}
+        </div>
+        <a class="btn btn-link btn-sm px-0 mt-2" href="{{ url_for('terminal.index') }}">Open the entry terminal (no login needed)</a>
+      </div>
+      {% endif %}
+      <p class="text-center text-muted small mt-4 mb-0">{{ icon('lock', 14) }} Accounts are created by the hostel administrator.</p>
+    </div>
+  </section>
+</div>
+{% endblock %}

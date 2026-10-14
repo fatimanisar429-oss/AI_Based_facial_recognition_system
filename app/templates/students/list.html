@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_header, empty_state, active_pill, pager %}
+{% from "_icons.html" import icon %}
+{% block title %}Students - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
+  <div>
+    <h1>Students</h1>
+    <p>{% if current_user.role == 'admin' %}Register students and manage their accounts.{% else %}Registered students (read only).{% endif %}</p>
+  </div>
+  {% if current_user.role == 'admin' %}
+    <a href="{{ url_for('students.create') }}" class="btn btn-primary">{{ icon('user-plus', 18) }} Add student</a>
+  {% endif %}
+</div>
+
+<section class="app-card">
+  <form method="get" action="{{ url_for('students.index') }}" class="filter-bar" role="search">
+    <div class="filter-search">
+      <label for="q" class="visually-hidden">Search students</label>
+      <input id="q" name="q" type="search" class="form-control" value="{{ filters.q }}"
+             placeholder="Search name, registration no., email or room" maxlength="100">
+    </div>
+    <div>
+      <label for="department" class="visually-hidden">Department</label>
+      <select id="department" name="department" class="form-select">
+        <option value="">All departments</option>
+        {% for d in departments %}<option value="{{ d }}" {% if d == filters.department %}selected{% endif %}>{{ d }}</option>{% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="status" class="visually-hidden">Status</label>
+      <select id="status" name="status" class="form-select">
+        <option value="active" {% if filters.status == 'active' %}selected{% endif %}>Active</option>
+        <option value="inactive" {% if filters.status == 'inactive' %}selected{% endif %}>Deactivated</option>
+        <option value="all" {% if filters.status == 'all' %}selected{% endif %}>All</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Search</button>
+    {% if filters.q or filters.department or filters.status != 'active' %}
+      <a href="{{ url_for('students.index') }}" class="btn btn-outline-secondary">Clear</a>
+    {% endif %}
+  </form>
+
+  {% if result.rows %}
+  <div class="table-responsive">
+    <table class="table app-table align-middle">
+      <thead><tr><th>Student</th><th>Room</th><th>Department</th><th>Warden</th><th>Status</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+      {% for s in result.rows %}
+        <tr>
+          <td>
+            <div class="person">
+              <span class="avatar avatar-sm">{{ s.full_name|initials }}</span>
+              <span><a href="{{ url_for('students.detail', student_id=s.student_id) }}" class="fw-medium text-decoration-none">{{ s.full_name }}</a>
+                <span class="d-block small text-muted">{{ s.registration_no }}</span></span>
+            </div>
+          </td>
+          <td>{{ s.room_no }}</td>
+          <td>{{ s.department }}</td>
+          <td>{{ s.warden_name or '—' }}</td>
+          <td>{{ active_pill(s.is_active) }}</td>
+          <td class="text-end text-nowrap">
+            <a href="{{ url_for('students.detail', student_id=s.student_id) }}" class="btn btn-outline-secondary btn-sm">View</a>
+            {% if current_user.role == 'admin' %}
+              <a href="{{ url_for('students.edit', student_id=s.student_id) }}" class="btn btn-outline-primary btn-sm">Edit</a>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ pager(result, 'students.index', filters) }}
+  {% else %}
+    {% if filters.q or filters.department or filters.status != 'active' %}
+      {{ empty_state("No students match your search", "Try a different word or clear the filters.", "users") }}
+    {% else %}
+      {{ empty_state("No students registered yet", "Added students will appear here." ~ (" Use the Add student button to start." if current_user.role == 'admin' else ""), "users") }}
+    {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

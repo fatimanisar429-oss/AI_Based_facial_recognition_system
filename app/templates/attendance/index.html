@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_header, empty_state, status_badge, pager, date_range_fields, count_strip %}
+{% from "_icons.html" import icon %}
+{% block title %}Attendance - Hostel Security{% endblock %}
+{% block content %}
+{{ page_header("Attendance", "Daily attendance created by each student's first successful entry of the day.") }}
+
+<section class="app-card">
+  <form method="get" action="{{ url_for('attendance.index') }}" class="filter-bar" role="search">
+    {{ date_range_fields(args) }}
+    <div class="filter-search">
+      <label for="q" class="visually-hidden">Search students</label>
+      <input id="q" name="q" type="search" class="form-control" value="{{ args.q }}" placeholder="Student name, registration no. or room" maxlength="100">
+    </div>
+    <div>
+      <label for="status" class="visually-hidden">Status</label>
+      <select id="status" name="status" class="form-select">
+        <option value="">All statuses</option>
+        <option value="Present" {% if args.status == 'Present' %}selected{% endif %}>Present</option>
+        <option value="Late" {% if args.status == 'Late' %}selected{% endif %}>Late</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Filter</button>
+    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">{{ icon('file-text', 16) }} Print</button>
+  </form>
+
+  {{ count_strip([("Present", result.present), ("Late", result.late), ("Records", result.total)]) }}
+
+  {% if result.rows %}
+  <div class="table-responsive">
+    <table class="table app-table align-middle">
+      <thead><tr><th>Date</th><th>First entry</th><th>Student</th><th>Room</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for r in result.rows %}
+        <tr>
+          <td class="text-nowrap">{{ r.local_date }}</td>
+          <td>{{ r.local_time[:5] }}</td>
+          <td>
+            <div class="person"><span class="avatar avatar-sm">{{ r.full_name|initials }}</span>
+              <span><a href="{{ url_for('students.detail', student_id=r.student_id) }}" class="fw-medium text-decoration-none">{{ r.full_name }}</a>
+                <span class="d-block small text-muted">{{ r.registration_no }}</span></span></div>
+          </td>
+          <td>{{ r.room_no }}</td>
+          <td>{{ status_badge(r.status) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ pager(result, 'attendance.index', args) }}
+  {% else %}
+    {{ empty_state("No attendance records found",
+                   "Nobody has entered " ~ ("on " ~ args['from'] if single_day else "between " ~ args['from'] ~ " and " ~ args['to']) ~ " yet, or nothing matches the filters." , "calendar") }}
+  {% endif %}
+</section>
+<p class="small text-muted mt-3">Days without a record count as absent. A day runs from {{ config.ATTENDANCE_DAY_START }} to {{ config.ATTENDANCE_DAY_START }}, so an arrival at 00:30 belongs to the previous day.</p>
+{% endblock %}

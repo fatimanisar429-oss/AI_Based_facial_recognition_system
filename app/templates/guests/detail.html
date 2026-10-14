@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge, empty_state, confirm_button %}
+{% from "_icons.html" import icon %}
+{% block title %}Guest visit - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
+  <div class="d-flex align-items-center gap-3">
+    <span class="avatar avatar-lg">{{ r.guest_name|initials }}</span>
+    <div><h1>{{ r.guest_name }}</h1><p>Guest visit &middot; {{ status_badge(status) }}</p></div>
+  </div>
+  <a href="{{ url_for('guests.requests_list') if staff else url_for('guests.mine') }}" class="btn btn-outline-secondary btn-sm">Back to the list</a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <section class="app-card mb-3">
+      <div class="card-title-row"><h2>Visit</h2></div>
+      <dl class="detail-list">
+        <dt>Guest</dt><dd>{{ r.guest_name }}<div class="small text-muted">{{ r.guest_contact }}</div></dd>
+        <dt>Date</dt><dd>{{ r.valid_from|localtime("%A, %d %B %Y") }}</dd>
+        <dt>Allowed between</dt><dd>{{ r.valid_from|localtime("%I:%M %p") }} &ndash; {{ r.valid_to|localtime("%I:%M %p") }}</dd>
+        <dt>Purpose</dt><dd>{{ r.purpose }}</dd>
+        <dt>Entries</dt><dd>{% if r.status == 'Approved' %}{{ r.entries_used }} of {{ r.max_entries }} used{% else %}{{ r.max_entries }} when approved (one-time unless the warden allows more){% endif %}</dd>
+        <dt>Requested</dt><dd>{{ r.created_at|localtime }}</dd>
+      </dl>
+    </section>
+
+    <section class="app-card">
+      <div class="card-title-row"><h2>Decision</h2></div>
+      {% if r.status == 'Pending' %}
+        {% if status == 'Expired' %}
+          <p class="px-3 pt-2 text-muted">The time window ended before the request was decided, so it can no longer be approved.</p>
+        {% elif staff and current_user.role == 'warden' %}
+          <div class="card-body-pad pt-2">
+            <form method="post" action="{{ url_for('guests.decide', request_id=r.request_id) }}" class="d-flex flex-wrap gap-2 align-items-end" data-once>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="approve">
+              <div>
+                <label for="entries" class="form-label mb-1">Entries allowed</label>
+                <select id="entries" name="entries" class="form-select">
+                  {% for n in range(1, max_entries + 1) %}<option value="{{ n }}">{{ n }}{{ ' (one-time, default)' if n == 1 else '' }}</option>{% endfor %}
+                </select>
+              </div>
+              <button type="submit" class="btn btn-success">Approve</button>
+            </form>
+            <form method="post" action="{{ url_for('guests.decide', request_id=r.request_id) }}" class="mt-2" data-confirm="Reject this visit request for {{ r.guest_name }}?" data-confirm-button="Reject">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="reject">
+              <button type="submit" class="btn btn-outline-danger">Reject</button>
+            </form>
+          </div>
+        {% else %}
+          <p class="px-3 pt-2 text-muted mb-3">Waiting for the warden's decision.</p>
+        {% endif %}
+      {% else %}
+        <dl class="detail-list">
+          <dt>Decision</dt><dd>{{ status_badge(r.status) }}</dd>
+          <dt>Decided by</dt><dd>{{ r.decided_by or '-' }}</dd>
+          <dt>Decided at</dt><dd>{{ r.decided_at|localtime }}</dd>
+        </dl>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="col-lg-6">
+    {% if staff %}
+    <section class="app-card mb-3">
+      <div class="card-title-row"><h2>Host student</h2></div>
+      <dl class="detail-list">
+        <dt>Name</dt><dd><a href="{{ url_for('students.detail', student_id=r.student_id) }}" class="text-decoration-none">{{ r.host_name }}</a></dd>
+        <dt>Registration</dt><dd>{{ r.host_reg }}</dd><dt>Room</dt><dd>{{ r.host_room }}</dd><dt>Phone</dt><dd>{{ r.host_phone }}</dd>
+        <dt>Account</dt><dd>{{ 'Active' if r.host_active else 'Deactivated' }}</dd>
+      </dl>
+    </section>
+    {% endif %}
+
+    <section class="app-card mb-3">
+      <div class="card-title-row"><h2>Guest's face</h2>
+        {% if staff and r.status == 'Approved' %}
+          <a href="{{ url_for('guests.enroll', request_id=r.request_id) }}" class="btn btn-sm {{ 'btn-outline-primary' if r.face_samples else 'btn-primary' }}">{{ icon('camera', 16) }} {{ 'Register again' if r.face_samples else 'Register face' }}</a>
+        {% endif %}
+      </div>
+      <dl class="detail-list">
+        <dt>Status</dt><dd>{% if r.face_samples %}<span class="pill pill-ok">Registered</span>{% else %}<span class="pill pill-muted">Not registered yet</span>{% endif %}</dd>
+      </dl>
+      {% if not staff %}<p class="small text-muted px-3 pb-3 mb-0">After approval, the warden registers your guest's face at the gate with the camera. Nothing is needed from you.</p>{% endif %}
+      {% if staff and r.face_samples %}
+        <div class="px-3 pb-3">{{ confirm_button(url_for('guests.enroll_remove', request_id=r.request_id),
+            "Delete the face data of " ~ r.guest_name ~ "? They will have to be registered again before their next visit.", "Delete face data") }}</div>
+      {% endif %}
+    </section>
+
+    <section class="app-card">
+      <div class="card-title-row"><h2>Activity</h2></div>
+      {% if entries or exits %}
+        <ul class="list-group list-group-flush">
+          {% for e in entries %}<li class="list-group-item d-flex justify-content-between"><span>Entry attempt &middot; {{ status_badge(e.result) }}</span><span class="text-muted small">{{ e.at|localtime }}</span></li>{% endfor %}
+          {% for x in exits %}<li class="list-group-item d-flex justify-content-between"><span>Exit recorded{% if x.by_name %} by {{ x.by_name }}{% endif %}</span><span class="text-muted small">{{ x.at|localtime }}</span></li>{% endfor %}
+        </ul>
+      {% else %}
+        {{ empty_state("No activity yet", "Entries at the gate and recorded exits appear here.", "list") }}
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

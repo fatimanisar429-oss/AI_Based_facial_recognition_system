@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% from "_macros.html" import confirm_button %}
+{% from "_icons.html" import icon %}
+{% block title %}Enroll {{ subject.name }} - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
+  <div class="d-flex align-items-center gap-3">
+    <span class="avatar avatar-lg">{{ subject.name|initials }}</span>
+    <div><h1>Face enrollment{% if subject.kind == 'guest' %} (guest){% endif %}</h1><p>{{ subject.name }} &middot; {{ subject.sub }}</p></div>
+  </div>
+  <a href="{{ subject.back_url }}" class="btn btn-outline-secondary btn-sm">{{ subject.back_label }}</a>
+</div>
+
+{% if key_problem %}
+  <div class="alert alert-danger" role="alert"><strong>Enrollment is switched off.</strong> {{ key_problem }}</div>
+{% endif %}
+
+{% if subject.enrolled %}
+  <div class="alert alert-info d-flex flex-wrap justify-content-between align-items-center gap-2" role="status">
+    <span>Already enrolled: {{ subject.face_samples }} face samples, saved {{ subject.enrolled_at|localtime }}.
+      Saving a new enrollment <strong>replaces</strong> the old one.</span>
+    {{ confirm_button(subject.remove_url,
+         "Remove the face enrollment for " ~ subject.name ~ "? " ~ subject.remove_note,
+         "Remove enrollment") }}
+  </div>
+{% endif %}
+
+<div id="enroll"
+     data-check-url="{{ subject.check_url }}"
+     data-save-url="{{ subject.save_url }}"
+     data-csrf="{{ csrf_token() }}"
+     data-samples="{{ samples }}"
+     data-replace="{{ '1' if subject.enrolled else '0' }}"
+     data-disabled="{{ '1' if key_problem else '0' }}">
+
+  <div class="row g-3">
+    <div class="col-lg-7">
+      <section class="app-card" aria-labelledby="cam-h">
+        <div class="card-title-row">
+          <h2 id="cam-h">Camera</h2>
+          <span id="cam-state" class="pill pill-muted">Camera off</span>
+        </div>
+        <div class="card-body-pad">
+          <div class="cam-box" id="cam-box">
+            <video id="cam-video" autoplay playsinline muted aria-label="Live camera preview"></video>
+            <div class="cam-guide" aria-hidden="true"></div>
+            <div class="cam-placeholder" id="cam-placeholder">
+              {{ icon('camera', 34) }}
+              <p>The camera starts automatically. Allow access when the browser asks. If it does not start, press <strong>Start camera</strong>.</p>
+            </div>
+          </div>
+
+          <div class="form-check my-3">
+            <input class="form-check-input" type="checkbox" id="consent">
+            <label class="form-check-label" for="consent">
+              The {{ subject.kind }} is present and has agreed to have their face enrolled{% if subject.kind == 'guest' %} for this visit{% else %} for hostel entry{% endif %}. Pictures are not stored,
+              only numeric templates.
+            </label>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2">
+            <button type="button" class="btn btn-primary" id="btn-start">{{ icon('camera', 18) }} Start camera</button>
+            <button type="button" class="btn btn-success" id="btn-capture" disabled>Capture sample</button>
+            <button type="button" class="btn btn-outline-secondary" id="btn-stop" disabled>Stop camera</button>
+          </div>
+          <div id="cam-message" class="msg-line" role="status" aria-live="polite"></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-lg-5">
+      <section class="app-card" aria-labelledby="samples-h">
+        <div class="card-title-row"><h2 id="samples-h">Samples (<span id="sample-count">0</span> of {{ samples }})</h2></div>
+        <div class="card-body-pad">
+          <ol class="sample-grid" id="sample-grid">
+            {% for prompt in ["Look straight at the camera", "Turn slightly to the left", "Turn slightly to the right",
+                              "Tilt the chin slightly up", "Look straight, relaxed"][:samples] %}
+            <li class="sample-slot" data-index="{{ loop.index0 }}">
+              <button type="button" class="slot-button" aria-label="Sample {{ loop.index }}: {{ prompt }}">
+                <span class="slot-empty">{{ loop.index }}</span>
+                <img alt="" class="slot-img" hidden>
+              </button>
+              <span class="slot-prompt">{{ prompt }}</span>
+            </li>
+            {% endfor %}
+          </ol>
+          <p class="small text-muted mb-3">Capture one sample at a time. Click a finished sample to retake it.
+            Use even light, keep the whole face in view and make sure nobody else is in the picture.</p>
+          <button type="button" class="btn btn-primary w-100" id="btn-save" disabled>Save enrollment</button>
+          <div id="save-message" class="msg-line" role="status" aria-live="polite"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}<script src="{{ url_for('static', filename='js/enroll.js') }}"></script>{% endblock %}

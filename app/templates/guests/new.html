@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% from "_macros.html" import form_field %}
+{% block title %}Request a guest visit - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Request a guest visit</h1>
+  <p>The warden must approve the visit. The guest's face is registered at the gate, and the approval allows one entry unless the warden says otherwise.</p>
+</div>
+
+{% if errors %}<div class="alert alert-danger" role="alert">Please fix the {{ errors|length }} highlighted field{{ 's' if errors|length > 1 }} below.</div>{% endif %}
+
+<form method="post" novalidate data-once action="{{ url_for('guests.new') }}" id="guest-form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <section class="app-card h-100">
+        <div class="card-title-row"><h2>Guest</h2></div>
+        <div class="card-body-pad">
+          {% if previous %}
+          <div class="mb-3">
+            <label for="previous_guest_id" class="form-label">Returning guest</label>
+            <select id="previous_guest_id" name="previous_guest_id" class="form-select{% if errors.previous_guest_id %} is-invalid{% endif %}">
+              <option value="">A new guest</option>
+              {% for p in previous %}<option value="{{ p.guest_id }}" {% if v.previous_guest_id|string == p.guest_id|string %}selected{% endif %}>{{ p.full_name }}</option>{% endfor %}
+            </select>
+            {% if errors.previous_guest_id %}<div class="invalid-feedback">{{ errors.previous_guest_id }}</div>
+            {% else %}<div class="form-text">A guest who visited before keeps their registered face, so they do not need to be registered again.</div>{% endif %}
+          </div>
+          {% endif %}
+          <div id="new-guest-fields">
+            {{ form_field("guest_name", "Guest's full name", value=v.guest_name, error=errors.guest_name, maxlength=100, required=False) }}
+            {{ form_field("guest_contact", "Guest's phone or email", value=v.guest_contact, error=errors.guest_contact, maxlength=100, required=False,
+                          hint="For example 0300 1234567") }}
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="col-lg-6">
+      <section class="app-card h-100">
+        <div class="card-title-row"><h2>Visit</h2></div>
+        <div class="card-body-pad">
+          <div class="mb-3">
+            <label for="visit_date" class="form-label">Visit date <span class="text-danger" aria-hidden="true">*</span></label>
+            <input id="visit_date" name="visit_date" type="date" class="form-control{% if errors.visit_date %} is-invalid{% endif %}"
+                   value="{{ v.visit_date or today }}" min="{{ today }}" required>
+            {% if errors.visit_date %}<div class="invalid-feedback">{{ errors.visit_date }}</div>{% endif %}
+          </div>
+          <div class="row">
+            <div class="col-sm-6 mb-3">
+              <label for="from_time" class="form-label">From <span class="text-danger" aria-hidden="true">*</span></label>
+              <input id="from_time" name="from_time" type="time" class="form-control{% if errors.from_time %} is-invalid{% endif %}" value="{{ v.from_time }}" required>
+              {% if errors.from_time %}<div class="invalid-feedback">{{ errors.from_time }}</div>{% endif %}
+            </div>
+            <div class="col-sm-6 mb-3">
+              <label for="to_time" class="form-label">Until <span class="text-danger" aria-hidden="true">*</span></label>
+              <input id="to_time" name="to_time" type="time" class="form-control{% if errors.to_time %} is-invalid{% endif %}" value="{{ v.to_time }}" required>
+              {% if errors.to_time %}<div class="invalid-feedback">{{ errors.to_time }}</div>{% endif %}
+            </div>
+          </div>
+          <div class="form-text mb-3 mt-n2">The guest can only enter between these times (at most {{ cfg.GUEST_MAX_HOURS }} hours).</div>
+          {{ form_field("purpose", "Purpose of the visit", value=v.purpose, error=errors.purpose, maxlength=200, placeholder="For example: family visit") }}
+        </div>
+      </section>
+    </div>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary" data-loading-text="Sending...">Send request</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('guests.mine') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+  // A returning guest keeps their saved name and contact, so those fields are switched off when one is chosen.
+  (function () {
+    var select = document.getElementById("previous_guest_id");
+    var box = document.getElementById("new-guest-fields");
+    if (!select) return;
+    function sync() { box.querySelectorAll("input").forEach(function (i) { i.disabled = select.value !== ""; }); box.style.opacity = select.value ? .5 : 1; }
+    select.addEventListener("change", sync); sync();
+  })();
+</script>
+{% endblock %}

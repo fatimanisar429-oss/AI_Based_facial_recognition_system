@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_macros.html" import empty_state, pager %}
+{% from "_icons.html" import icon %}
+{% block title %}Biometric enrollment - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Biometric enrollment</h1>
+  <p>Capture a student's face with this computer's camera. Only numeric templates are stored, never photographs.</p>
+</div>
+
+{% if key_problem %}
+  <div class="alert alert-danger" role="alert"><strong>Enrollment is switched off.</strong> {{ key_problem }}</div>
+{% endif %}
+
+<section class="app-card">
+  <form method="get" action="{{ url_for('enrollment.index') }}" class="filter-bar" role="search">
+    <div class="filter-search">
+      <label for="q" class="visually-hidden">Search students</label>
+      <input id="q" name="q" type="search" class="form-control" value="{{ filters.q }}"
+             placeholder="Search name, registration no. or room" maxlength="100">
+    </div>
+    <div>
+      <label for="show" class="visually-hidden">Enrollment status</label>
+      <select id="show" name="show" class="form-select">
+        <option value="all" {% if filters.show == 'all' %}selected{% endif %}>All active students</option>
+        <option value="not_enrolled" {% if filters.show == 'not_enrolled' %}selected{% endif %}>Not enrolled</option>
+        <option value="enrolled" {% if filters.show == 'enrolled' %}selected{% endif %}>Enrolled</option>
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Search</button>
+    {% if filters.q or filters.show != 'all' %}<a href="{{ url_for('enrollment.index') }}" class="btn btn-outline-secondary">Clear</a>{% endif %}
+  </form>
+
+  {% if result.rows %}
+  <div class="table-responsive">
+    <table class="table app-table align-middle">
+      <thead><tr><th>Student</th><th>Room</th><th>Face enrollment</th><th class="text-end">Action</th></tr></thead>
+      <tbody>
+      {% for s in result.rows %}
+        <tr>
+          <td>
+            <div class="person">
+              <span class="avatar avatar-sm">{{ s.full_name|initials }}</span>
+              <span><a href="{{ url_for('students.detail', student_id=s.student_id) }}" class="fw-medium text-decoration-none">{{ s.full_name }}</a>
+                <span class="d-block small text-muted">{{ s.registration_no }}</span></span>
+            </div>
+          </td>
+          <td>{{ s.room_no }}</td>
+          <td>
+            {% if s.face_samples %}
+              <span class="pill pill-ok">Enrolled</span>
+              <span class="small text-muted ms-1">{{ s.face_samples }} samples &middot; {{ s.enrolled_at|localtime("%d %b %Y") }}</span>
+            {% else %}
+              <span class="pill pill-muted">Not enrolled</span>
+            {% endif %}
+          </td>
+          <td class="text-end text-nowrap">
+            <a href="{{ url_for('enrollment.capture', student_id=s.student_id) }}"
+               class="btn btn-sm {{ 'btn-outline-primary' if s.face_samples else 'btn-primary' }}">{{ icon('camera', 16) }} {{ 'Re-enroll' if s.face_samples else 'Enroll' }}</a>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ pager(result, 'enrollment.index', filters) }}
+  {% else %}
+    {% if filters.q or filters.show != 'all' %}
+      {{ empty_state("No students match your search", "Try a different word or clear the filters.", "camera") }}
+    {% else %}
+      {{ empty_state("No active students yet", "Add students first, then enroll their faces here.", "users") }}
+    {% endif %}
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Hostel Security System{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/bootstrap.min.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+{% from "_macros.html" import flash_messages %}
+{% from "_icons.html" import icon, logo %}
+
+{% block body %}
+<div class="app-shell">
+
+  {# ---- Sidebar: fixed on desktop, slides in from the left on phones ---- #}
+  <div class="sidebar-col">
+    <aside class="offcanvas-lg offcanvas-start sidebar" id="sidebar" tabindex="-1" aria-label="Main menu">
+      <div class="sidebar-inner">
+        <div class="sidebar-brand">
+          <a href="{{ url_for('home') }}" class="brand-link">
+            {{ logo(38) }}
+            <span class="brand-text">Hostel Security<small>Entry &amp; attendance</small></span>
+          </a>
+          <button type="button" class="btn-close btn-close-white d-lg-none" data-bs-dismiss="offcanvas"
+                  data-bs-target="#sidebar" aria-label="Close menu"></button>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Sections">
+          <div class="nav-heading">Menu</div>
+          {% for item in nav_items %}
+            {% if item.url %}
+              <a href="{{ item.url }}" class="nav-link-item{% if item.active %} active{% endif %}"
+                 {% if item.active %}aria-current="page"{% endif %}>{{ icon(item.icon, 19) }}<span>{{ item.label }}</span>{% if item.badge %}<em class="nav-badge" aria-label="{{ item.badge }} new">{{ item.badge }}</em>{% endif %}</a>
+            {% else %}
+              <span class="nav-link-item disabled" aria-disabled="true">{{ icon(item.icon, 19) }}<span>{{ item.label }}</span><em class="soon">Soon</em></span>
+            {% endif %}
+          {% endfor %}
+        </nav>
+
+        {% if current_user %}
+        <div class="sidebar-user">
+          <span class="avatar">{{ current_user.full_name|initials }}</span>
+          <div class="user-meta">
+            <div class="user-name">{{ current_user.full_name }}</div>
+            <div class="user-role">{{ current_user.role|capitalize }}</div>
+          </div>
+          <form method="post" action="{{ url_for('auth.logout') }}" class="m-0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="icon-btn" title="Log out" aria-label="Log out">{{ icon('log-out', 18) }}</button>
+          </form>
+        </div>
+        {% endif %}
+      </div>
+    </aside>
+  </div>
+
+  <div class="app-main">
+    {# ---- Top bar ---- #}
+    <header class="topbar">
+      <button class="icon-btn d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar"
+              aria-controls="sidebar" aria-label="Open menu">{{ icon('menu', 22) }}</button>
+      <div class="topbar-title">{% block topbar_title %}{{ title|default('Hostel Security System') }}{% endblock %}</div>
+      <div class="topbar-user d-none d-sm-flex">
+        <span class="avatar avatar-sm">{{ current_user.full_name|initials }}</span>
+        <span>{{ current_user.full_name }}</span>
+        <span class="role-pill">{{ current_user.role }}</span>
+      </div>
+    </header>
+
+    <main class="content">
+      {{ flash_messages() }}
+      {% block content %}{% endblock %}
+      <div class="footer-note">AI-Based Facial and Iris Recognition Hostel Security System &middot; University of Southern Punjab</div>
+    </main>
+  </div>
+</div>
+{% endblock %}
+
+{# One shared confirmation dialog. A form with data-confirm="message" opens it before submitting (app.js). #}
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title fs-5" id="confirmTitle">Please confirm</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="confirmBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirmOk">Confirm</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

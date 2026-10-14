@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "_macros.html" import active_pill, confirm_button, empty_state %}
+{% block title %}{{ w.full_name }} - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
+  <div class="d-flex align-items-center gap-3">
+    <span class="avatar avatar-lg">{{ w.full_name|initials }}</span>
+    <div><h1>{{ w.full_name }}</h1><p>Warden &middot; {{ active_pill(w.is_active) }}</p></div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('wardens.index') }}" class="btn btn-outline-secondary btn-sm">Back to wardens</a>
+    <a href="{{ url_for('wardens.edit', warden_id=w.warden_id) }}" class="btn btn-primary btn-sm">Edit</a>
+    {% if w.is_active %}
+      {{ confirm_button(url_for('wardens.deactivate', warden_id=w.warden_id),
+           "Deactivate " ~ w.full_name ~ "? This warden will no longer be able to log in. You can reactivate the account later.", "Deactivate") }}
+    {% else %}
+      {{ confirm_button(url_for('wardens.activate', warden_id=w.warden_id),
+           "Reactivate " ~ w.full_name ~ "? This warden will be able to log in again.", "Reactivate", "success") }}
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5">
+    <section class="app-card h-100">
+      <div class="card-title-row"><h2>Details</h2></div>
+      <dl class="detail-list">
+        <dt>Email</dt><dd>{{ w.email }}</dd>
+        <dt>Phone</dt><dd>{{ w.phone }}</dd>
+        <dt>Gender</dt><dd>{{ w.gender }}</dd>
+      </dl>
+    </section>
+  </div>
+  <div class="col-lg-7">
+    <section class="app-card h-100">
+      <div class="card-title-row"><h2>Assigned students ({{ students|length }})</h2></div>
+      {% if students %}
+        <ul class="list-group list-group-flush">
+          {% for s in students %}
+          <li class="list-group-item d-flex justify-content-between">
+            <a href="{{ url_for('students.detail', student_id=s.student_id) }}" class="text-decoration-none">{{ s.full_name }}</a>
+            <span class="text-muted small">{{ s.registration_no }} &middot; Room {{ s.room_no }}</span>
+          </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        {{ empty_state("No students assigned", "Assign this warden on a student's edit page.", "users") }}
+      {% endif %}
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_header, empty_state, status_badge, pager, count_strip %}
+{% from "_icons.html" import icon %}
+{% block title %}Email - Hostel Security{% endblock %}
+{% block content %}
+{{ page_header("Email", "Alerts and weekly parent reports are emailed from here. They are saved first, so a mail problem never loses one.") }}
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-6">
+    <section class="app-card h-100">
+      <div class="card-title-row"><h2>Mail server</h2>
+        {% if smtp.configured %}<span class="pill pill-ok">Configured</span>{% else %}<span class="pill pill-warn">Not configured</span>{% endif %}</div>
+      <dl class="detail-list">
+        <dt>Server</dt><dd>{{ smtp.server or '-' }}{% if smtp.server %}:{{ smtp.port }}{% endif %}</dd>
+        <dt>Encryption</dt><dd>{{ 'TLS' if smtp.tls else 'None' }}</dd>
+        <dt>Sign-in</dt><dd>{{ 'Yes (password hidden)' if smtp.login else 'No' }}</dd>
+        <dt>Sender</dt><dd>{{ smtp.sender or '-' }}</dd>
+      </dl>
+      {% if not smtp.configured %}<p class="small text-muted px-3 pb-3 mb-0">Set MAIL_SERVER, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD and MAIL_DEFAULT_SENDER in <code>.env</code> and restart. Until then alerts still work; their emails are marked Skipped.</p>{% endif %}
+    </section>
+  </div>
+  <div class="col-lg-6">
+    <section class="app-card h-100">
+      <div class="card-title-row"><h2>Send a test email</h2></div>
+      <form method="post" action="{{ url_for('emails.test') }}" class="card-body-pad pt-2" data-once>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="recipient" class="form-label">Send the test to</label>
+        <div class="input-group">
+          <input id="recipient" name="recipient" type="email" class="form-control" value="{{ current_user.email }}" maxlength="100" required>
+          <button type="submit" class="btn btn-primary" data-loading-text="Sending...">{{ icon('mail', 16) }} Send test</button>
+        </div>
+        <div class="form-text">The result is shown here. Passwords are never displayed.</div>
+      </form>
+    </section>
+  </div>
+</div>
+
+<section class="app-card">
+  <form method="get" action="{{ url_for('emails.index') }}" class="filter-bar">
+    <div><label for="status" class="visually-hidden">Status</label>
+      <select id="status" name="status" class="form-select"><option value="">All messages</option>
+        {% for s in statuses %}<option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+    <button type="submit" class="btn btn-primary">Filter</button>
+  </form>
+  {{ count_strip([("Sent", counts.get('Sent', 0)), ("Pending", counts.get('Pending', 0)), ("Failed", counts.get('Failed', 0)), ("Skipped", counts.get('Skipped', 0))]) }}
+  {% if result.rows %}
+  <div class="table-responsive">
+    <table class="table app-table align-middle">
+      <thead><tr><th>Created</th><th>To</th><th>Subject</th><th>Status</th><th>Tries</th></tr></thead>
+      <tbody>
+      {% for e in result.rows %}
+        <tr>
+          <td class="text-nowrap">{{ e.created_at|localtime("%d %b, %I:%M %p") }}</td>
+          <td>{{ e.recipient }}<div class="small text-muted">{{ e.kind|replace('_', ' ') }}</div></td>
+          <td>{{ e.subject }}{% if e.last_error %}<div class="small text-danger">{{ e.last_error }}</div>{% endif %}</td>
+          <td>{{ status_badge(e.status) }}</td><td>{{ e.attempts }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ pager(result, 'emails.index', {'status': status}) }}
+  <div class="px-3 pb-3">
+    <form method="post" action="{{ url_for('emails.retry') }}" data-once>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline-secondary btn-sm" data-loading-text="Queuing...">Retry failed and skipped messages</button>
+    </form>
+  </div>
+  {% else %}
+    {{ empty_state("No emails yet", "Messages appear here when an alert or a weekly report is emailed.", "mail") }}
+  {% endif %}
+</section>
+{% endblock %}

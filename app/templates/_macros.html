@@ -1,0 +1,215 @@
+{# Reusable building blocks. Import with:  {% from "_macros.html" import stat_tile, empty_state %} #}
+{% from "_icons.html" import icon %}
+
+{% macro flash_messages() %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ 'danger' if category in ('error', 'danger') else category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+{% endmacro %}
+
+{% macro page_header(title, subtitle=None) %}
+  <div class="page-header">
+    <h1>{{ title }}</h1>
+    {% if subtitle %}<p>{{ subtitle }}</p>{% endif %}
+  </div>
+{% endmacro %}
+
+{# A number with an icon. tone: blue | teal | green | amber | violet | rose #}
+{% macro stat_tile(label, value, hint=None, icon_name='activity', tone='teal') %}
+  <div class="app-card stat-tile">
+    <div class="stat-icon tone-{{ tone }}">{{ icon(icon_name, 22) }}</div>
+    <div class="stat-body">
+      <div class="stat-label">{{ label }}</div>
+      <div class="stat-value">{{ value }}</div>
+      {% if hint %}<div class="stat-hint">{{ hint }}</div>{% endif %}
+    </div>
+  </div>
+{% endmacro %}
+
+{% macro empty_state(title, message=None, icon_name='activity') %}
+  <div class="empty-state">
+    <div class="empty-icon">{{ icon(icon_name, 26) }}</div>
+    <div class="empty-title">{{ title }}</div>
+    {% if message %}<div>{{ message }}</div>{% endif %}
+  </div>
+{% endmacro %}
+
+{# Coloured badge. The text always says the status, so colour is never the only signal. #}
+{% macro status_badge(status) %}
+  {% set kinds = {
+    'Granted': 'ok', 'Present': 'ok', 'Approved': 'ok', 'Sent': 'ok',
+    'Denied': 'bad', 'Rejected': 'bad', 'New': 'bad', 'Failed': 'bad',
+    'Late': 'warn', 'Pending': 'warn', 'Acknowledged': 'muted', 'Expired': 'muted', 'Used': 'info', 'Skipped': 'muted'
+  } %}
+  <span class="pill pill-{{ kinds.get(status, 'muted') }}">{{ status }}</span>
+{% endmacro %}
+
+{# One labelled form field with its validation message. #}
+{% macro form_field(name, label, type='text', value='', error=None, required=True, autocomplete=None, autofocus=False, hint=None, placeholder=None, maxlength=None) %}
+  <div class="mb-3">
+    <label for="{{ name }}" class="form-label">{{ label }}{% if required %} <span class="text-danger" aria-hidden="true">*</span>{% endif %}</label>
+    <input id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ value if value is not none else '' }}"
+           class="form-control{% if error %} is-invalid{% endif %}"
+           {% if required %}required{% endif %}
+           {% if maxlength %}maxlength="{{ maxlength }}"{% endif %}
+           {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+           {% if autocomplete %}autocomplete="{{ autocomplete }}"{% endif %}
+           {% if autofocus %}autofocus{% endif %}
+           {% if error or hint %}aria-describedby="{{ name }}-help"{% endif %}>
+    {% if error %}<div id="{{ name }}-help" class="invalid-feedback">{{ error }}</div>
+    {% elif hint %}<div id="{{ name }}-help" class="form-text">{{ hint }}</div>{% endif %}
+  </div>
+{% endmacro %}
+
+{# Dropdown. options = list of (value, label). #}
+{% macro select_field(name, label, options, value='', error=None, required=True, blank_label=None, hint=None) %}
+  <div class="mb-3">
+    <label for="{{ name }}" class="form-label">{{ label }}{% if required %} <span class="text-danger" aria-hidden="true">*</span>{% endif %}</label>
+    <select id="{{ name }}" name="{{ name }}" class="form-select{% if error %} is-invalid{% endif %}"
+            {% if required %}required{% endif %} {% if error or hint %}aria-describedby="{{ name }}-help"{% endif %}>
+      {% if blank_label is not none %}<option value="">{{ blank_label }}</option>{% endif %}
+      {% for opt_value, opt_label in options %}
+        <option value="{{ opt_value }}" {% if value|string == opt_value|string %}selected{% endif %}>{{ opt_label }}</option>
+      {% endfor %}
+    </select>
+    {% if error %}<div id="{{ name }}-help" class="invalid-feedback">{{ error }}</div>
+    {% elif hint %}<div id="{{ name }}-help" class="form-text">{{ hint }}</div>{% endif %}
+  </div>
+{% endmacro %}
+
+{# A button that POSTs to `action` after the user confirms in a dialog (see app.js). Works without JavaScript too. #}
+{% macro confirm_button(action, message, label, style='danger', size='sm') %}
+  <form method="post" action="{{ action }}" class="d-inline" data-confirm="{{ message }}" data-confirm-button="{{ label }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="btn btn-outline-{{ style }} btn-{{ size }}">{{ label }}</button>
+  </form>
+{% endmacro %}
+
+{# Page links. `endpoint` is the list route; `args` keeps the current search/filters. #}
+{% macro pager(result, endpoint, args) %}
+  {% if result.pages > 1 %}
+  <nav class="pager-row" aria-label="Pages">
+    <span class="text-muted small">Page {{ result.page }} of {{ result.pages }} &middot; {{ result.total }} total</span>
+    <ul class="pagination pagination-sm mb-0">
+      <li class="page-item {% if result.page == 1 %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for(endpoint, page=result.page - 1, **args) }}">Previous</a></li>
+      {% for n in range([result.page - 2, 1]|max, [result.page + 2, result.pages]|min + 1) %}
+        <li class="page-item {% if n == result.page %}active{% endif %}">
+          <a class="page-link" href="{{ url_for(endpoint, page=n, **args) }}" {% if n == result.page %}aria-current="page"{% endif %}>{{ n }}</a></li>
+      {% endfor %}
+      <li class="page-item {% if result.page == result.pages %}disabled{% endif %}">
+        <a class="page-link" href="{{ url_for(endpoint, page=result.page + 1, **args) }}">Next</a></li>
+    </ul>
+  </nav>
+  {% elif result.total %}
+  <div class="pager-row"><span class="text-muted small">{{ result.total }} total</span></div>
+  {% endif %}
+{% endmacro %}
+
+{% macro active_pill(is_active) %}
+  {% if is_active %}<span class="pill pill-ok">Active</span>{% else %}<span class="pill pill-muted">Deactivated</span>{% endif %}
+{% endmacro %}
+
+{# Table of recent entry-log rows (admin and warden dashboards). #}
+{% macro entry_table(rows, empty_title, empty_message) %}
+  {% if rows %}
+  <div class="table-responsive">
+    <table class="table app-table align-middle">
+      <thead><tr><th>Time</th><th>Person</th><th>Method</th><th>Result</th></tr></thead>
+      <tbody>
+      {% for r in rows %}
+        <tr>
+          <td class="text-nowrap">{{ r.attempted_at|localtime }}</td>
+          <td>
+            <div class="person">
+              <span class="avatar avatar-sm {{ 'avatar-unknown' if not r.subject_type else '' }}">{{ r.person|initials if r.subject_type else '?' }}</span>
+              <span>{{ r.person }}{% if r.subject_type == 'guest' %} <span class="text-muted small">(guest)</span>{% endif %}</span>
+            </div>
+          </td>
+          <td>{{ r.method }}{% if r.needs_review %} <span class="pill pill-info">Review</span>{% endif %}</td>
+          <td>{{ status_badge(r.result) }}{% if r.failure_reason %}<div class="small text-muted">{{ r.failure_reason }}</div>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+    {{ empty_state(empty_title, empty_message, 'list') }}
+  {% endif %}
+{% endmacro %}
+
+{# Today's attendance as one segmented bar plus a labelled key (counts are in the text, not colour alone). #}
+{% macro attendance_meter(present, late, not_yet) %}
+  {% set total = present + late + not_yet %}
+  {% if total %}
+  <div class="meter-headline"><span class="hero-num">{{ present + late }}</span> of {{ total }} students have entered today</div>
+  <div class="meter" role="img" aria-label="{{ present }} present, {{ late }} late, {{ not_yet }} not yet entered">
+    {% if present %}<span class="meter-seg seg-present" style="flex: {{ present }}" title="Present: {{ present }}"></span>{% endif %}
+    {% if late %}<span class="meter-seg seg-late" style="flex: {{ late }}" title="Late: {{ late }}"></span>{% endif %}
+    {% if not_yet %}<span class="meter-seg seg-notyet" style="flex: {{ not_yet }}" title="Not yet entered: {{ not_yet }}"></span>{% endif %}
+  </div>
+  <ul class="meter-key">
+    <li><span class="key-dot seg-present"></span><span class="key-num">{{ present }}</span> Present</li>
+    <li><span class="key-dot seg-late"></span><span class="key-num">{{ late }}</span> Late</li>
+    <li><span class="key-dot seg-notyet"></span><span class="key-num">{{ not_yet }}</span> Not yet entered</li>
+  </ul>
+  {% else %}
+    {{ empty_state("No students registered yet", "Attendance appears here once students are added.", 'users') }}
+  {% endif %}
+{% endmacro %}
+
+{# Column chart drawn from app/services/charts.py geometry. Hover a bar for its value. #}
+{% macro column_chart(c, label) %}
+  {% if c.total %}
+  <figure class="chart">
+    <svg viewBox="0 0 {{ c.width }} {{ c.height }}" role="img" aria-label="{{ label }}" class="chart-svg">
+      {% for t in c.ticks %}
+        <line class="grid" x1="{{ c.left }}" x2="{{ c.right }}" y1="{{ t.y }}" y2="{{ t.y }}"/>
+        <text class="tick" x="{{ c.left - 8 }}" y="{{ t.y + 4 }}" text-anchor="end">{{ t.text }}</text>
+      {% endfor %}
+      {% for b in c.bars %}
+        <path class="bar s{{ b.series }}" d="{{ b.path }}"><title>{{ b.tip }}</title></path>
+      {% endfor %}
+      {% for l in c.labels %}
+        <text class="tick" x="{{ l.x }}" y="{{ c.height - 8 }}" text-anchor="middle">{{ l.text }}</text>
+      {% endfor %}
+    </svg>
+    <figcaption class="chart-key">
+      {% for name in c.series %}<span><span class="key-dot s{{ loop.index0 }}"></span>{{ name }}</span>{% endfor %}
+    </figcaption>
+    {# Table version of the same numbers, for screen readers. #}
+    <table class="visually-hidden">
+      <caption>{{ label }}</caption>
+      <thead><tr><th>Day</th>{% for name in c.series %}<th>{{ name }}</th>{% endfor %}</tr></thead>
+      <tbody>{% for g in c.groups %}<tr><th>{{ g.full }}</th>{% for v in g['values'] %}<td>{{ v }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+    </table>
+  </figure>
+  {% else %}
+    {{ empty_state("No entry activity in the last 7 days", "The chart fills in as people use the entry terminal.", 'activity') }}
+  {% endif %}
+{% endmacro %}
+
+
+{# From / To date inputs for filter bars. `args` holds the current values. #}
+{% macro date_range_fields(args) %}
+  <div class="filter-date">
+    <label for="from" class="visually-hidden">From date</label>
+    <input id="from" name="from" type="date" class="form-control" value="{{ args['from'] }}" aria-label="From date">
+  </div>
+  <div class="filter-date">
+    <label for="to" class="visually-hidden">To date</label>
+    <input id="to" name="to" type="date" class="form-control" value="{{ args['to'] }}" aria-label="To date">
+  </div>
+{% endmacro %}
+
+{# Small number tiles above a table. items = list of (label, value). #}
+{% macro count_strip(items) %}
+  <div class="count-strip">
+    {% for label, value in items %}<div><span class="count-num">{{ value }}</span><span class="count-label">{{ label }}</span></div>{% endfor %}
+  </div>
+{% endmacro %}

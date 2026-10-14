@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_header, empty_state, status_badge, pager, count_strip, column_chart %}
+{% from "_icons.html" import icon %}
+{% block title %}Reports - Hostel Security{% endblock %}
+{% block content %}
+<div class="no-print">{{ page_header("Reports", "Attendance and security reports for a day, a week or a month. Print a report with the Print button.") }}</div>
+
+<section class="app-card no-print mb-3">
+  <form method="get" action="{{ url_for('reports.index') }}" class="filter-bar" id="report-form" data-once>
+    <input type="hidden" name="tab" value="{{ tab }}">
+    <div>
+      <label for="type" class="visually-hidden">Report type</label>
+      <select id="type" name="type" class="form-select">
+        <option value="daily" {% if kind == 'daily' %}selected{% endif %}>Daily</option>
+        <option value="weekly" {% if kind == 'weekly' %}selected{% endif %}>Weekly (Mon to Sun)</option>
+        <option value="monthly" {% if kind == 'monthly' %}selected{% endif %}>Monthly</option>
+      </select>
+    </div>
+    <div class="period-input" data-for="daily"><label for="date" class="visually-hidden">Day</label>
+      <input id="date" name="date" type="date" class="form-control" value="{{ values.date }}" aria-label="Day"></div>
+    <div class="period-input" data-for="weekly"><label for="week" class="visually-hidden">Any day in the week</label>
+      <input id="week" name="week" type="date" class="form-control" value="{{ values.week }}" aria-label="Any day in the week"></div>
+    <div class="period-input" data-for="monthly"><label for="month" class="visually-hidden">Month</label>
+      <input id="month" name="month" type="month" class="form-control" value="{{ values.month }}" aria-label="Month"></div>
+    {% if tab != 'security' %}
+    <div class="filter-search"><label for="q" class="visually-hidden">Search students</label>
+      <input id="q" name="q" type="search" class="form-control" value="{{ values.q }}" placeholder="Student name, registration no. or room" maxlength="100"></div>
+    {% endif %}
+    {% if tab == 'attendance' %}
+    <div><label for="order" class="visually-hidden">Sort by</label>
+      <select id="order" name="order" class="form-select">
+        <option value="name" {% if values.order == 'name' %}selected{% endif %}>Sort: name</option>
+        <option value="attendance" {% if values.order == 'attendance' %}selected{% endif %}>Sort: lowest attendance</option>
+        <option value="late" {% if values.order == 'late' %}selected{% endif %}>Sort: most late entries</option>
+      </select></div>
+    {% endif %}
+    <button type="submit" class="btn btn-primary" data-loading-text="Generating...">Show report</button>
+    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">{{ icon('file-text', 16) }} Print</button>
+  </form>
+</section>
+
+{% set base = {'type': kind, 'date': values.date, 'week': values.week, 'month': values.month, 'q': values.q, 'order': values.order} %}
+<ul class="nav nav-pills report-tabs no-print mb-3" aria-label="Report sections">
+  <li class="nav-item"><a class="nav-link {% if tab == 'attendance' %}active{% endif %}" href="{{ url_for('reports.index', tab='attendance', **base) }}" {% if tab == 'attendance' %}aria-current="page"{% endif %}>Attendance</a></li>
+  <li class="nav-item"><a class="nav-link {% if tab == 'security' %}active{% endif %}" href="{{ url_for('reports.index', tab='security', **base) }}" {% if tab == 'security' %}aria-current="page"{% endif %}>Security</a></li>
+  <li class="nav-item"><a class="nav-link {% if tab == 'parents' %}active{% endif %}" href="{{ url_for('reports.index', tab='parents', **base) }}" {% if tab == 'parents' %}aria-current="page"{% endif %}>Parent emails</a></li>
+</ul>
+
+{# Shown only when printing #}
+<div class="print-header">
+  <div class="print-brand">{{ config.HOSTEL_NAME }}</div>
+  <h1 class="print-title">{{ report_title }}</h1>
+  <div class="print-meta">{{ {'attendance': 'Attendance report', 'security': 'Security report', 'parents': 'Weekly parent emails'}[tab] }} &middot; Generated {{ generated }} by {{ current_user.full_name }}</div>
+</div>
+
+<h1 class="report-heading no-print">{{ report_title }}</h1>
+
+{% if tab == 'attendance' %}
+  {% set att = att %}
+  {% if att.future %}
+    <section class="app-card">{{ empty_state("This period has not started", "There is nothing to report yet. Choose a day, week or month that has begun.", "calendar") }}</section>
+  {% else %}
+    {% if att.partial %}<div class="alert alert-info no-print" role="status">This period is not over yet. Only days up to today ({{ att.through }}) are counted, so nobody is shown absent for a day that has not happened.</div>{% endif %}
+    <section class="app-card">
+      {{ count_strip([("Students", att.summary.students),
+                      ("Average attendance", (att.summary.average ~ '%') if att.summary.average is not none else '-'),
+                      ("Days present", att.summary.days_present), ("Late entries", att.summary.late), ("Days absent", att.summary.absent),
+                      ("Perfect attendance", att.summary.perfect)]) }}
+      {% if att.rows %}
+      <div class="table-responsive">
+        <table class="table app-table align-middle">
+          {% if kind == 'daily' %}
+          <thead><tr><th>Student</th><th>Room</th><th>Status</th><th>First entry</th></tr></thead>
+          <tbody>
+          {% for r in att.rows %}
+            <tr><td><span class="fw-medium">{{ r.full_name }}</span><span class="d-block small text-muted">{{ r.registration_no }}</span></td><td>{{ r.room_no }}</td>
+              <td>{% if r.status in ('Present', 'Late') %}{{ status_badge(r.status) }}{% elif r.status == 'Absent' %}<span class="pill pill-bad">Absent</span>{% else %}<span class="pill pill-muted">{{ r.status }}</span>{% endif %}</td>
+              <td>{{ r.first_entry or '-' }}</td></tr>
+          {% endfor %}
+          </tbody>
+          {% else %}
+          <thead><tr><th>Student</th><th>Room</th><th class="text-end">Days counted</th><th class="text-end">Days present</th><th class="text-end">Late entries</th><th class="text-end">Days absent</th><th>Attendance</th></tr></thead>
+          <tbody>
+          {% for r in att.rows %}
+            <tr><td><span class="fw-medium">{{ r.full_name }}</span><span class="d-block small text-muted">{{ r.registration_no }}</span></td><td>{{ r.room_no }}</td>
+              <td class="text-end">{{ r.days }}</td><td class="text-end">{{ r.days_present }}</td><td class="text-end">{{ r.late_entries }}</td><td class="text-end">{{ r.days_absent }}</td>
+              <td class="pct-cell">{% if r.percentage is not none %}<div class="pct-bar" role="img" aria-label="{{ r.percentage }} percent"><span style="width: {{ r.percentage }}%"></span></div><span class="pct-num">{{ r.percentage }}%</span>{% else %}-{% endif %}</td></tr>
+          {% endfor %}
+          </tbody>
+          {% endif %}
+        </table>
+      </div>
+      {% else %}
+        {{ empty_state("No students to report on", "No active students match. Add students, or clear the search.", "users") }}
+      {% endif %}
+    </section>
+    <p class="small text-muted mt-3">A day with no attendance record counts as absent. A student is only counted from the day they were registered. A late day is a day present with a late entry.</p>
+  {% endif %}
+
+{% elif tab == 'security' %}
+  {% set sec = sec %}
+  <section class="app-card mb-3">
+    {{ count_strip([("Entry attempts", sec.attempts), ("Granted", sec.granted), ("Denied", sec.denied), ("Need review", sec.review), ("Alerts", sec.alerts_total)]) }}
+    {% if sec.attempts or sec.alerts_total %}
+    <div class="row g-0">
+      <div class="col-lg-7 p-3 border-end-lg">
+        <h2 class="h6 mb-2">Entry attempts per day</h2>
+        {{ column_chart(sec.chart, "Entry attempts per day") }}
+      </div>
+      <div class="col-lg-5 p-3">
+        <h2 class="h6 mb-2">Granted entries</h2>
+        <dl class="mini-list">
+          <dt>Students</dt><dd>{{ sec.student_entries }}</dd><dt>Guests</dt><dd>{{ sec.guest_entries }}</dd>
+          <dt>By face</dt><dd>{{ sec.face }}</dd><dt>By eye region</dt><dd>{{ sec.eye }}</dd>
+        </dl>
+        <h2 class="h6 mt-3 mb-2">Why attempts were denied</h2>
+        {% if sec.reasons %}
+        <table class="table app-table mb-0"><tbody>{% for label, n in sec.reasons %}<tr><td>{{ label }}</td><td class="text-end fw-medium">{{ n }}</td></tr>{% endfor %}</tbody></table>
+        {% else %}<p class="text-muted small mb-0">No denied attempts.</p>{% endif %}
+      </div>
+    </div>
+    {% else %}
+      {{ empty_state("No activity in this period", "No entry attempts or alerts were recorded between " ~ first ~ " and " ~ last ~ ".", "shield") }}
+    {% endif %}
+  </section>
+
+  <div class="row g-3">
+    <div class="col-lg-6"><section class="app-card h-100">
+      <div class="card-title-row"><h2>Alerts</h2></div>
+      <dl class="detail-list">
+        <dt>Emergency</dt><dd>{{ sec.emergency.total }} <span class="text-muted small">({{ sec.emergency.acknowledged }} acknowledged, {{ sec.emergency.open }} open)</span></dd>
+        <dt>Security</dt><dd>{{ sec.unauthorized.total }} <span class="text-muted small">({{ sec.unauthorized.acknowledged }} acknowledged, {{ sec.unauthorized.open }} open)</span></dd>
+      </dl>
+      {% if sec.alerts %}
+      <div class="table-responsive"><table class="table app-table"><thead><tr><th>Time</th><th>Type</th><th>Status</th></tr></thead><tbody>
+        {% for a in sec.alerts %}<tr><td class="text-nowrap">{{ a.created_at|localtime("%d %b, %I:%M %p") }}</td>
+          <td>{{ a.alert_type }}{% if a.student_name %}<span class="d-block small text-muted">{{ a.student_name }} &middot; Room {{ a.room_no }}</span>{% endif %}</td><td>{{ status_badge(a.status) }}</td></tr>{% endfor %}
+      </tbody></table></div>
+      {% endif %}
+    </section></div>
+    <div class="col-lg-6"><section class="app-card h-100">
+      <div class="card-title-row"><h2>Guests and exits</h2></div>
+      <dl class="detail-list">
+        <dt>Guest visits</dt><dd>{{ sec.visits.total }} <span class="text-muted small">({{ sec.visits.approved }} approved, {{ sec.visits.rejected }} rejected, {{ sec.visits.pending }} waiting)</span></dd>
+        <dt>Guest entries</dt><dd>{{ sec.guest_entries }}</dd>
+        <dt>Student exits recorded</dt><dd>{{ sec.exits.get('student', 0) }}</dd>
+        <dt>Guest exits recorded</dt><dd>{{ sec.exits.get('guest', 0) }}</dd>
+      </dl>
+      <p class="small text-muted px-3 pb-3 mb-0">Exits are written down by staff; the system does not detect them.</p>
+    </section></div>
+  </div>
+
+{% else %}
+  <section class="app-card">
+    <form method="get" action="{{ url_for('reports.index') }}" class="filter-bar no-print">
+      <input type="hidden" name="tab" value="parents">
+      {% for key in ('type', 'date', 'week', 'month') %}<input type="hidden" name="{{ key }}" value="{{ values[key] }}">{% endfor %}
+      <div><label for="pstatus" class="visually-hidden">Email status</label>
+        <select id="pstatus" name="status" class="form-select"><option value="">All email statuses</option>
+          {% for s in ('Sent', 'Pending', 'Failed') %}<option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+      <div class="filter-search"><label for="pq" class="visually-hidden">Search</label>
+        <input id="pq" name="q" type="search" class="form-control" value="{{ values.q }}" placeholder="Student name or registration no." maxlength="100"></div>
+      <button type="submit" class="btn btn-primary">Filter</button>
+    </form>
+    {% if parents.rows %}
+    <div class="table-responsive"><table class="table app-table align-middle">
+      <thead><tr><th>Student</th><th>Period</th><th class="text-end">Days present</th><th class="text-end">Late</th><th class="text-end">Attendance</th><th>Parent email</th><th>Email</th></tr></thead>
+      <tbody>{% for r in parents.rows %}<tr>
+        <td><span class="fw-medium">{{ r.full_name }}</span><span class="d-block small text-muted">{{ r.registration_no }}</span></td>
+        <td class="text-nowrap">{{ r.period_start }} to {{ r.period_end }}</td><td class="text-end">{{ r.days_present }}</td><td class="text-end">{{ r.late_entries }}</td>
+        <td class="text-end">{{ r.attendance_percentage }}%</td><td>{{ r.parent_email }}</td><td>{{ status_badge(r.email_status) }}</td></tr>{% endfor %}</tbody>
+    </table></div>
+    {{ pager(parents, 'reports.index', {'tab': 'parents', 'type': kind, 'date': values.date, 'week': values.week, 'month': values.month, 'q': values.q, 'status': status}) }}
+    {% else %}
+      {{ empty_state("No parent reports in this period", "Weekly reports are created every " ~ config.WEEKLY_REPORT_DAY|capitalize ~ " at " ~ config.WEEKLY_REPORT_TIME ~ " and emailed to parents.", "mail") }}
+    {% endif %}
+  </section>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+  // Show only the date input that belongs to the chosen report type (all stay visible if JavaScript is off).
+  (function () {
+    var type = document.getElementById("type");
+    if (!type) return;
+    function sync() { document.querySelectorAll(".period-input").forEach(function (el) { el.hidden = el.dataset.for !== type.value; }); }
+    type.addEventListener("change", sync); sync();
+  })();
+</script>
+{% endblock %}

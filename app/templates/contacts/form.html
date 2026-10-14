@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "_macros.html" import form_field, select_field %}
+{% block title %}{{ title }} - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header"><h1>{{ title }}</h1><p>Emergency emails are sent to this address.</p></div>
+{% if errors %}<div class="alert alert-danger" role="alert">Please fix the {{ errors|length }} highlighted field{{ 's' if errors|length > 1 }} below.</div>{% endif %}
+<form method="post" novalidate data-once class="form-narrow"
+      action="{{ url_for('contacts.create') if mode == 'new' else url_for('contacts.edit', contact_id=contact_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <section class="app-card"><div class="card-body-pad pt-4">
+    {{ form_field("contact_name", "Name", value=v.contact_name, error=errors.contact_name, autofocus=True, maxlength=100, placeholder="Hostel security office") }}
+    {{ select_field("contact_type", "Type", type_options, value=v.contact_type, error=errors.contact_type, blank_label="Select...", hint="Security contacts also receive automatic security alerts.") }}
+    {{ form_field("phone", "Phone", type="tel", value=v.phone, error=errors.phone, placeholder="+92 61 1234567") }}
+    {{ form_field("email", "Email", type="email", value=v.email, error=errors.email, maxlength=100) }}
+  </div></section>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary" data-loading-text="Saving...">{{ 'Add contact' if mode == 'new' else 'Save changes' }}</button>
+    <a class="btn btn-outline-secondary" href="{{ url_for('contacts.index') }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

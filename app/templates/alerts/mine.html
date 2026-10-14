@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_header, empty_state, status_badge %}
+{% from "_icons.html" import icon %}
+{% block title %}Emergency alert - Hostel Security{% endblock %}
+{% block content %}
+{{ page_header("Emergency alert", "Use this only if you need help.") }}
+
+<section class="app-card emergency-card mb-3">
+  <div class="card-body-pad pt-4">
+    <p class="mb-3"><strong>The alert goes to your hostel warden and to the emergency contacts the administrator has set up, by email.</strong>
+      It does <strong>not</strong> call the police, an ambulance or any other emergency service. If your life is in danger, call them yourself.</p>
+    <form method="post" action="{{ url_for('alerts.emergency') }}" data-confirm="Send an emergency alert to the warden? Use this only for a real emergency. It does not call the police or any emergency service." data-confirm-button="Send emergency alert">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-danger btn-lg">{{ icon('alert-triangle', 20) }} Emergency</button>
+    </form>
+    <p class="small text-muted mt-3 mb-0">You will be asked to confirm. Pressing it again within {{ cooldown // 60 }} minutes does not send a second alert.</p>
+  </div>
+</section>
+
+<section class="app-card" aria-labelledby="my-alerts-h">
+  <div class="card-title-row"><h2 id="my-alerts-h">My alerts</h2></div>
+  {% if rows %}
+  <div class="table-responsive">
+    <table class="table app-table"><thead><tr><th>Sent</th><th>Status</th></tr></thead><tbody>
+      {% for a in rows %}
+      <tr><td class="text-nowrap">{{ a.created_at|localtime }}</td>
+        <td>{{ status_badge(a.status) }}{% if a.status == 'Acknowledged' %} <span class="small text-muted">by {{ a.acknowledged_by or 'the warden' }}, {{ a.acknowledged_at|localtime("%I:%M %p") }}</span>{% endif %}</td></tr>
+      {% endfor %}
+    </tbody></table>
+  </div>
+  {% else %}
+    {{ empty_state("No alerts sent", "Alerts you send will be listed here with their status.", "bell") }}
+  {% endif %}
+</section>
+{% endblock %}

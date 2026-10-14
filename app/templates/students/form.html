@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "_macros.html" import form_field, select_field %}
+{% block title %}{{ title }} - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ title }}</h1>
+  <p>{% if mode == 'new' %}Create the account. The student can log in with this email and password.{% else %}Update the details. Leave the password empty to keep the current one.{% endif %}</p>
+</div>
+
+{% if errors %}
+  <div class="alert alert-danger" role="alert">Please fix the {{ errors|length }} highlighted field{{ 's' if errors|length > 1 }} below.</div>
+{% endif %}
+
+<form method="post" novalidate data-once
+      action="{{ url_for('students.create') if mode == 'new' else url_for('students.edit', student_id=student_id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <div class="row g-3">
+    <div class="col-lg-6">
+      <section class="app-card h-100">
+        <div class="card-title-row"><h2>Personal details</h2></div>
+        <div class="card-body-pad">
+          {{ form_field("full_name", "Full name", value=v.full_name, error=errors.full_name, autofocus=True, maxlength=100) }}
+          {{ form_field("registration_no", "Registration number", value=v.registration_no, error=errors.registration_no,
+                        placeholder="BSSE-023R22-19", maxlength=30, hint="Must be unique. Saved in capitals.") }}
+          {{ form_field("email", "Email", type="email", value=v.email, error=errors.email, autocomplete="off", maxlength=100,
+                        hint="Used to log in.") }}
+          {{ form_field("phone", "Phone number", type="tel", value=v.phone, error=errors.phone, placeholder="+92 300 1234567") }}
+          {{ select_field("gender", "Gender", gender_options, value=v.gender, error=errors.gender, blank_label="Select...") }}
+        </div>
+      </section>
+    </div>
+
+    <div class="col-lg-6">
+      <section class="app-card mb-3">
+        <div class="card-title-row"><h2>Hostel and study</h2></div>
+        <div class="card-body-pad">
+          <div class="row">
+            <div class="col-sm-6">{{ form_field("room_no", "Room number", value=v.room_no, error=errors.room_no, maxlength=20) }}</div>
+            <div class="col-sm-6">{{ form_field("session", "Session", value=v.session, error=errors.session, placeholder="2022-2026", maxlength=20) }}</div>
+          </div>
+          {{ form_field("department", "Department", value=v.department, error=errors.department, maxlength=100) }}
+          {{ select_field("warden_id", "Warden", warden_options, value=v.warden_id, error=errors.warden_id, required=False, blank_label="No warden assigned") }}
+        </div>
+      </section>
+
+      <section class="app-card mb-3">
+        <div class="card-title-row"><h2>Parent / guardian</h2></div>
+        <div class="card-body-pad">
+          {{ form_field("parent_name", "Parent name", value=v.parent_name, error=errors.parent_name, maxlength=100) }}
+          {{ form_field("parent_email", "Parent email", type="email", value=v.parent_email, error=errors.parent_email, maxlength=100,
+                        hint="Receives the weekly attendance report.") }}
+        </div>
+      </section>
+
+      <section class="app-card">
+        <div class="card-title-row"><h2>Account password</h2></div>
+        <div class="card-body-pad">
+          {{ form_field("password", "Password" if mode == 'new' else "New password", type="password", required=(mode == 'new'),
+                        error=errors.password, autocomplete="new-password", maxlength=128,
+                        hint="At least 8 characters." ~ (" Leave empty to keep the current password." if mode == 'edit' else "")) }}
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary" data-loading-text="Saving...">{{ 'Add student' if mode == 'new' else 'Save changes' }}</button>
+    <a class="btn btn-outline-secondary"
+       href="{{ url_for('students.index') if mode == 'new' else url_for('students.detail', student_id=student_id) }}">Cancel</a>
+  </div>
+</form>
+{% endblock %}

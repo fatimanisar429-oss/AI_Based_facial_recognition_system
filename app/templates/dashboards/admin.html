@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_header, stat_tile, entry_table, attendance_meter, column_chart %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ title }} - Hostel Security{% endblock %}
+{% block content %}
+{{ page_header(hello[0] ~ ", " ~ current_user.full_name.split()[0], hello[1] ~ " · Overview of today's hostel activity") }}
+
+<div class="quick-actions">
+  <a href="{{ url_for('students.create') }}" class="btn btn-primary">{{ icon('user-plus', 18) }} Add student</a>
+  <a href="{{ url_for('wardens.create') }}" class="btn btn-outline-primary">{{ icon('shield', 18) }} Add warden</a>
+  <a href="{{ url_for('students.index') }}" class="btn btn-outline-secondary">{{ icon('users', 18) }} All students</a>
+  <a href="{{ url_for('wardens.index') }}" class="btn btn-outline-secondary">{{ icon('list', 18) }} All wardens</a>
+  <a href="{{ url_for('enrollment.index') }}" class="btn btn-outline-secondary">{{ icon('camera', 18) }} Enrollment</a>
+  <a href="{{ url_for('reports.index') }}" class="btn btn-outline-secondary">{{ icon('file-text', 18) }} Reports</a>
+  <a href="{{ url_for('settings.index') }}" class="btn btn-outline-secondary">{{ icon('sliders', 18) }} Settings</a>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-3">{{ stat_tile("Registered students", d.total_students, "Active accounts", "users", "blue") }}</div>
+  <div class="col-6 col-xl-3">{{ stat_tile("Wardens", d.total_wardens, "Active accounts", "shield", "violet") }}</div>
+  <div class="col-6 col-xl-3">{{ stat_tile("Present today", d.attendance.present, "Entered before curfew", "check-circle", "green") }}</div>
+  <div class="col-6 col-xl-3">{{ stat_tile("Late today", d.attendance.late, "Entered after curfew", "clock", "amber") }}</div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-5">
+    <section class="app-card h-100" aria-labelledby="att-h">
+      <div class="card-title-row"><h2 id="att-h">Attendance today</h2></div>
+      <div class="card-body-pad">{{ attendance_meter(d.attendance.present, d.attendance.late, d.not_yet_in) }}</div>
+    </section>
+  </div>
+  <div class="col-lg-7">
+    <section class="app-card h-100" aria-labelledby="week-h">
+      <div class="card-title-row"><h2 id="week-h">Entry attempts, last 7 days</h2></div>
+      <div class="card-body-pad">{{ column_chart(d.week, "Entry attempts per day for the last 7 days") }}</div>
+    </section>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12">
+    <section class="app-card" aria-labelledby="granted-h">
+      <div class="card-title-row"><h2 id="granted-h">Recent entry activity</h2></div>
+      {{ entry_table(d.recent_granted, "No entries yet", "Successful entries will appear here.") }}
+    </section>
+  </div>
+  <div class="col-12">
+    <section class="app-card" aria-labelledby="failed-h">
+      <div class="card-title-row"><h2 id="failed-h">Recent failed attempts</h2></div>
+      {{ entry_table(d.recent_failed, "No failed attempts", "Denied attempts will appear here.") }}
+    </section>
+  </div>
+</div>
+{% endblock %}

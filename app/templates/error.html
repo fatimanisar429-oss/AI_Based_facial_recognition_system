@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon, logo %}
+{% block title %}{{ title }}{% endblock %}
+
+{# Logged-in users keep the normal layout; logged-out visitors get a simple centred page. #}
+{% block body %}
+{% if current_user %}
+  {{ super() }}
+{% else %}
+  <div class="login-panel" style="min-height:100vh">
+    <div class="login-card text-center">
+      <div class="mb-3">{{ logo(48) }}</div>
+      <div class="display-5 fw-semibold">{{ code }}</div>
+      <h2>{{ title }}</h2>
+      <p class="text-muted">{{ message }}</p>
+      <a class="btn btn-primary" href="{{ url_for('home') }}">Back to log in</a>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="app-card">
+  <div class="empty-state">
+    <div class="display-5 fw-semibold">{{ code }}</div>
+    <div class="empty-title">{{ title }}</div>
+    <p>{{ message }}</p>
+    <a class="btn btn-primary" href="{{ url_for('home') }}">Back to dashboard</a>
+  </div>
+</div>
+{% endblock %}

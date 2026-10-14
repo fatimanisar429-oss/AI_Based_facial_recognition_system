@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_header, stat_tile, entry_table, empty_state, status_badge, attendance_meter, column_chart %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ title }} - Hostel Security{% endblock %}
+{% block content %}
+{{ page_header(hello[0] ~ ", " ~ current_user.full_name.split()[0], hello[1] ~ " · Attendance, entries and alerts at a glance") }}
+
+<div class="quick-actions">
+  <a href="{{ url_for('reports.index') }}" class="btn btn-primary">{{ icon('file-text', 18) }} Reports</a>
+  <a href="{{ url_for('attendance.index') }}" class="btn btn-outline-secondary">{{ icon('calendar', 18) }} Attendance</a>
+  <a href="{{ url_for('logs.index') }}" class="btn btn-outline-secondary">{{ icon('list', 18) }} Entry logs</a>
+  <a href="{{ url_for('guests.requests_list') }}" class="btn btn-outline-secondary">{{ icon('user-plus', 18) }} Guest requests</a>
+  <a href="{{ url_for('alerts.index') }}" class="btn btn-outline-secondary">{{ icon('bell', 18) }} Alerts</a>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-6 col-xl-3">{{ stat_tile("Present today", d.attendance.present, "Entered before curfew", "check-circle", "green") }}</div>
+  <div class="col-6 col-xl-3">{{ stat_tile("Late today", d.attendance.late, "Entered after curfew", "clock", "amber") }}</div>
+  <div class="col-6 col-xl-3">{{ stat_tile("Pending guest requests", pending_count, "Waiting for a decision", "user-plus", "blue") }}</div>
+  <div class="col-6 col-xl-3">{{ stat_tile("Active security alerts", d.security_alerts|length, "Unacknowledged", "alert-triangle", "rose") }}</div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-5">
+    <section class="app-card h-100" aria-labelledby="att-h">
+      <div class="card-title-row"><h2 id="att-h">Attendance today</h2></div>
+      <div class="card-body-pad">{{ attendance_meter(d.attendance.present, d.attendance.late, d.not_yet_in) }}</div>
+    </section>
+  </div>
+  <div class="col-lg-7">
+    <section class="app-card h-100" aria-labelledby="week-h">
+      <div class="card-title-row"><h2 id="week-h">Entry attempts, last 7 days</h2></div>
+      <div class="card-body-pad">{{ column_chart(d.week, "Entry attempts per day for the last 7 days") }}</div>
+    </section>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-6">
+    <section class="app-card h-100" aria-labelledby="sec-h">
+      <div class="card-title-row"><h2 id="sec-h">Security alerts</h2></div>
+      {% if d.security_alerts %}
+      <ul class="list-group list-group-flush">
+        {% for a in d.security_alerts %}
+        <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+          <div>{{ a.message }}<div class="small text-muted">{{ a.created_at|localtime }}</div></div>
+          <div class="text-end">{{ status_badge(a.status) }}
+            <form method="post" action="{{ url_for('alerts.acknowledge', alert_id=a.alert_id) }}" class="mt-1" data-once>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="dashboard">
+              <button type="submit" class="btn btn-sm btn-primary" data-loading-text="Saving...">Acknowledge</button></form></div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        {{ empty_state("No active security alerts", "An alert appears after 3 failed attempts within 5 minutes.", "shield") }}
+      {% endif %}
+    </section>
+  </div>
+  <div class="col-lg-6">
+    <section class="app-card h-100" aria-labelledby="emg-h">
+      <div class="card-title-row"><h2 id="emg-h">Recent emergency alerts</h2></div>
+      {% if d.emergency_alerts %}
+      <ul class="list-group list-group-flush">
+        {% for a in d.emergency_alerts %}
+        <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+          <div><strong>{{ a.full_name or "Unknown student" }}</strong>{% if a.room_no %} &middot; Room {{ a.room_no }}{% endif %}
+            <div>{{ a.message }}</div><div class="small text-muted">{{ a.created_at|localtime }}</div></div>
+          <div class="text-end">{{ status_badge(a.status) }}
+            {% if a.status == 'New' %}<form method="post" action="{{ url_for('alerts.acknowledge', alert_id=a.alert_id) }}" class="mt-1" data-once>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="next" value="dashboard">
+              <button type="submit" class="btn btn-sm btn-primary" data-loading-text="Saving...">Acknowledge</button></form>{% endif %}</div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+        {{ empty_state("No emergency alerts", "Alerts raised by students will appear here.", "bell") }}
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+<section class="app-card mb-3" aria-labelledby="gp-h">
+  <div class="card-title-row"><h2 id="gp-h">Guest requests waiting</h2><a href="{{ url_for('guests.requests_list') }}" class="btn btn-sm btn-outline-secondary">All requests</a></div>
+  {% if pending_guests %}
+  <ul class="list-group list-group-flush">
+    {% for r in pending_guests %}
+    <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+      <div><strong>{{ r.guest_name }}</strong> <span class="text-muted">for {{ r.host_name }}</span>
+        <div class="small text-muted">{{ r.valid_from|localtime("%d %b, %I:%M %p") }} &ndash; {{ r.valid_to|localtime("%I:%M %p") }} &middot; {{ r.purpose[:50] }}</div></div>
+      <a class="btn btn-sm btn-primary" href="{{ url_for('guests.review', request_id=r.request_id) }}">Review</a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+    {{ empty_state("No requests waiting", "New guest visit requests appear here.", "user-plus") }}
+  {% endif %}
+</section>
+
+<div class="row g-3">
+  <div class="col-12">
+    <section class="app-card" aria-labelledby="granted-h">
+      <div class="card-title-row"><h2 id="granted-h">Recent successful entries</h2></div>
+      {{ entry_table(d.recent_granted, "No entries yet", "Successful entries will appear here.") }}
+    </section>
+  </div>
+  <div class="col-12">
+    <section class="app-card" aria-labelledby="failed-h">
+      <div class="card-title-row"><h2 id="failed-h">Recent failed attempts</h2></div>
+      {{ entry_table(d.recent_failed, "No failed attempts", "Denied attempts will appear here.") }}
+    </section>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_header, empty_state, status_badge, pager, date_range_fields, count_strip %}
+{% from "_icons.html" import icon %}
+{% block title %}Entry logs - Hostel Security{% endblock %}
+{% block content %}
+{{ page_header("Entry logs", "Every verification attempt at the gate. Entries cannot be edited or deleted.") }}
+
+<section class="app-card">
+  <form method="get" action="{{ url_for('logs.index') }}" class="filter-bar" role="search">
+    {{ date_range_fields(args) }}
+    <div class="filter-search">
+      <label for="q" class="visually-hidden">Search by name</label>
+      <input id="q" name="q" type="search" class="form-control" value="{{ args.q }}" placeholder="Student name or registration no." maxlength="100">
+    </div>
+    <div>
+      <label for="result" class="visually-hidden">Result</label>
+      <select id="result" name="result" class="form-select">
+        <option value="">All results</option>
+        <option value="Granted" {% if args.result == 'Granted' %}selected{% endif %}>Granted</option>
+        <option value="Denied" {% if args.result == 'Denied' %}selected{% endif %}>Denied</option>
+      </select>
+    </div>
+    <div>
+      <label for="method" class="visually-hidden">Method</label>
+      <select id="method" name="method" class="form-select">
+        <option value="">All methods</option>
+        <option value="Face" {% if args.method == 'Face' %}selected{% endif %}>Face</option>
+        <option value="Eye-Region" {% if args.method == 'Eye-Region' %}selected{% endif %}>Eye-Region</option>
+        <option value="None" {% if args.method == 'None' %}selected{% endif %}>None (denied)</option>
+      </select>
+    </div>
+    <div class="form-check align-self-center ms-1">
+      <input class="form-check-input" type="checkbox" name="review" value="1" id="review" {% if review %}checked{% endif %}>
+      <label class="form-check-label" for="review">Needs review</label>
+    </div>
+    <button type="submit" class="btn btn-primary">Filter</button>
+    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">{{ icon('file-text', 16) }} Print</button>
+  </form>
+
+  {{ count_strip([("Granted", result.granted), ("Denied", result.denied), ("Need review", result.review), ("Attempts", result.total)]) }}
+
+  {% if result.rows %}
+  <div class="table-responsive">
+    <table class="table app-table align-middle">
+      <thead><tr><th>Time</th><th>Person</th><th>Method</th><th>Result</th><th>Liveness</th><th>Match distance</th></tr></thead>
+      <tbody>
+      {% for r in result.rows %}
+        <tr>
+          <td class="text-nowrap">{{ r.attempted_at|localtime("%d %b %Y, %I:%M:%S %p") }}</td>
+          <td>
+            <div class="person">
+              <span class="avatar avatar-sm {{ 'avatar-unknown' if not r.subject_type else '' }}">{{ r.person|initials if r.subject_type else '?' }}</span>
+              <span>{% if r.student_id %}<a href="{{ url_for('students.detail', student_id=r.student_id) }}" class="text-decoration-none">{{ r.person }}</a>{% else %}{{ r.person }}{% endif %}
+                {% if r.subject_type == 'guest' %}<span class="text-muted small">(guest)</span>{% endif %}</span>
+            </div>
+          </td>
+          <td>{{ r.method }}{% if r.needs_review %} <span class="pill pill-info">Review</span>{% endif %}</td>
+          <td>{{ status_badge(r.result) }}{% if r.failure_reason %}<div class="small text-muted">{{ r.failure_reason }}</div>{% endif %}</td>
+          <td class="text-capitalize">{{ (r.liveness or '-')|replace('_', ' ') }}</td>
+          <td>{{ '%.3f'|format(r.score) if r.score is not none else '-' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ pager(result, 'logs.index', args) }}
+  {% else %}
+    {{ empty_state("No entry attempts found", "Nothing was recorded between " ~ args['from'] ~ " and " ~ args['to'] ~ " for these filters.", "list") }}
+  {% endif %}
+</section>
+<p class="small text-muted mt-3">Match distance: smaller means more alike (a face matches below {{ config.FACE_THRESHOLD }}). Denied attempts are never linked to a student because the person is not known. Eye-region entries are marked for review.</p>
+{% endblock %}

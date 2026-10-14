@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "_macros.html" import empty_state, status_badge, pager, date_range_fields %}
+{% from "_icons.html" import icon %}
+{% block title %}Guest requests - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
+  <div><h1>{{ 'Guest requests' if current_user.role == 'warden' else 'Guest visits' }}</h1>
+    <p>{% if current_user.role == 'warden' %}Review requests and approve or reject them.{% else %}All guest visit requests (read only).{% endif %}</p></div>
+  <span class="pill {{ 'pill-warn' if pending else 'pill-muted' }} align-self-center">{{ pending }} waiting for a decision</span>
+</div>
+
+<section class="app-card">
+  <form method="get" action="{{ url_for('guests.requests_list') }}" class="filter-bar" role="search">
+    <div>
+      <label for="status" class="visually-hidden">Status</label>
+      <select id="status" name="status" class="form-select">
+        <option value="all" {% if args.status == 'all' %}selected{% endif %}>All statuses</option>
+        {% for s in statuses %}<option value="{{ s }}" {% if args.status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="filter-search">
+      <label for="q" class="visually-hidden">Search</label>
+      <input id="q" name="q" type="search" class="form-control" value="{{ args.q }}" placeholder="Guest name, student name or registration no." maxlength="100">
+    </div>
+    <button type="submit" class="btn btn-primary">Filter</button>
+  </form>
+
+  {% if result.rows %}
+  <div class="table-responsive">
+    <table class="table app-table align-middle">
+      <thead><tr><th>Guest</th><th>Host student</th><th>Visit</th><th>Status</th><th>Entries</th><th>Face</th><th></th></tr></thead>
+      <tbody>
+      {% for r in result.rows %}
+        <tr>
+          <td><div class="fw-medium">{{ r.guest_name }}</div><div class="small text-muted">{{ r.purpose[:40] }}{{ '...' if r.purpose|length > 40 }}</div></td>
+          <td>{{ r.host_name }}<div class="small text-muted">{{ r.host_reg }}</div></td>
+          <td class="text-nowrap">{{ r.valid_from|localtime("%d %b %Y") }}<div class="small text-muted">{{ r.valid_from|localtime("%I:%M %p") }} &ndash; {{ r.valid_to|localtime("%I:%M %p") }}</div></td>
+          <td>{{ status_badge(status_of(r, now)) }}</td>
+          <td>{% if r.status == 'Approved' %}{{ r.entries_used }} / {{ r.max_entries }}{% else %}&mdash;{% endif %}</td>
+          <td>{% if r.face_samples %}<span class="pill pill-ok">Registered</span>{% else %}<span class="pill pill-muted">Not yet</span>{% endif %}</td>
+          <td class="text-end"><a class="btn btn-sm {{ 'btn-primary' if r.status == 'Pending' and current_user.role == 'warden' else 'btn-outline-secondary' }}"
+              href="{{ url_for('guests.review', request_id=r.request_id) }}">{{ 'Review' if r.status == 'Pending' and current_user.role == 'warden' else 'View' }}</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ pager(result, 'guests.requests_list', args) }}
+  {% else %}
+    {{ empty_state("No guest requests found", "Nothing matches these filters.", "user-plus") }}
+  {% endif %}
+</section>
+{% endblock %}

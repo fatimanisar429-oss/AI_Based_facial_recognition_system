@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "_macros.html" import empty_state, pager, confirm_button %}
+{% from "_icons.html" import icon %}
+{% block title %}Emergency contacts - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
+  <div><h1>Emergency contacts</h1><p>These contacts get an email when a student presses the Emergency button. Security-type contacts also get security alerts. Nobody is contacted automatically by phone.</p></div>
+  <a href="{{ url_for('contacts.create') }}" class="btn btn-primary">{{ icon('user-plus', 18) }} Add contact</a>
+</div>
+<section class="app-card">
+  <form method="get" action="{{ url_for('contacts.index') }}" class="filter-bar" role="search">
+    <div class="filter-search"><label for="q" class="visually-hidden">Search</label>
+      <input id="q" name="q" type="search" class="form-control" value="{{ q }}" placeholder="Search name or email" maxlength="100"></div>
+    <button type="submit" class="btn btn-primary">Search</button>
+    {% if q %}<a href="{{ url_for('contacts.index') }}" class="btn btn-outline-secondary">Clear</a>{% endif %}
+  </form>
+  {% if result.rows %}
+  <div class="table-responsive">
+    <table class="table app-table align-middle">
+      <thead><tr><th>Name</th><th>Type</th><th>Phone</th><th>Email</th><th class="text-end">Actions</th></tr></thead>
+      <tbody>
+      {% for c in result.rows %}
+        <tr>
+          <td class="fw-medium">{{ c.contact_name }}</td><td><span class="pill pill-muted">{{ c.contact_type }}</span></td>
+          <td>{{ c.phone }}</td><td>{{ c.email }}</td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-outline-primary btn-sm" href="{{ url_for('contacts.edit', contact_id=c.contact_id) }}">Edit</a>
+            {{ confirm_button(url_for('contacts.delete', contact_id=c.contact_id), "Remove " ~ c.contact_name ~ "? They will no longer receive alert emails.", "Delete") }}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ pager(result, 'contacts.index', {'q': q}) }}
+  {% else %}
+    {{ empty_state("No emergency contacts yet" if not q else "No contacts match your search", "Add the security office or other people who should be emailed in an emergency.", "users") }}
+  {% endif %}
+</section>
+{% endblock %}

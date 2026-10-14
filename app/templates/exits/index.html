@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_header, empty_state, pager, date_range_fields %}
+{% from "_icons.html" import icon %}
+{% block title %}Exit records - Hostel Security{% endblock %}
+{% block content %}
+{{ page_header("Exit records", "Staff write down when a student leaves. The system does not detect exits by itself.") }}
+
+<section class="app-card mb-3" aria-labelledby="rec-h">
+  <div class="card-title-row"><h2 id="rec-h">Record an exit</h2></div>
+  <form method="post" action="{{ url_for('exits.record') }}" class="filter-bar" data-once>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="filter-search">
+      <label for="student_id" class="visually-hidden">Student</label>
+      <select id="student_id" name="student_id" class="form-select" required>
+        <option value="">Choose a student...</option>
+        {% for value, label in student_options %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary" data-loading-text="Saving...">{{ icon('log-out', 16) }} Record exit now</button>
+  </form>
+</section>
+
+<section class="app-card mb-3" aria-labelledby="gx-h">
+  <div class="card-title-row"><h2 id="gx-h">Record a guest exit</h2></div>
+  {% if guests_inside %}
+  <form method="post" action="{{ url_for('exits.record_guest') }}" class="filter-bar" data-once>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="filter-search">
+      <label for="guest_id" class="visually-hidden">Guest</label>
+      <select id="guest_id" name="guest_id" class="form-select" required>
+        <option value="">Guests currently inside...</option>
+        {% for gst in guests_inside %}<option value="{{ gst.guest_id }}">{{ gst.full_name }} (guest of {{ gst.host_name }}, in at {{ gst.last_in|localtime("%I:%M %p") }})</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary" data-loading-text="Saving...">{{ icon('log-out', 16) }} Record guest exit</button>
+  </form>
+  {% else %}
+    {{ empty_state("No guests inside", "A guest appears here after a successful entry at the terminal.", "user-plus") }}
+  {% endif %}
+</section>
+
+<section class="app-card">
+  <form method="get" action="{{ url_for('exits.index') }}" class="filter-bar" role="search">
+    {{ date_range_fields(args) }}
+    <div class="filter-search">
+      <label for="q" class="visually-hidden">Search</label>
+      <input id="q" name="q" type="search" class="form-control" value="{{ args.q }}" placeholder="Student name or registration no." maxlength="100">
+    </div>
+    <button type="submit" class="btn btn-primary">Filter</button>
+  </form>
+  {% if result.rows %}
+  <div class="table-responsive">
+    <table class="table app-table align-middle">
+      <thead><tr><th>Time</th><th>Person</th><th>Recorded by</th></tr></thead>
+      <tbody>
+      {% for r in result.rows %}
+        <tr>
+          <td class="text-nowrap">{{ r.recorded_at|localtime("%d %b %Y, %I:%M %p") }}</td>
+          <td>{{ r.person }}{% if r.subject_type == 'guest' %} <span class="text-muted small">(guest)</span>{% endif %}{% if r.registration_no %}<span class="d-block small text-muted">{{ r.registration_no }}</span>{% endif %}</td>
+          <td>{{ r.recorded_by or '-' }} <span class="small text-muted text-capitalize">({{ r.recorded_by_role }})</span></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {{ pager(result, 'exits.index', args) }}
+  {% else %}
+    {{ empty_state("No exits recorded", "No exit was recorded between " ~ args['from'] ~ " and " ~ args['to'] ~ ".", "log-out") }}
+  {% endif %}
+</section>
+{% endblock %}

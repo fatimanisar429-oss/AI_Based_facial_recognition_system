@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_macros.html" import active_pill, confirm_button %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ s.full_name }} - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
+  <div class="d-flex align-items-center gap-3">
+    <span class="avatar avatar-lg">{{ s.full_name|initials }}</span>
+    <div>
+      <h1>{{ s.full_name }}</h1>
+      <p>{{ s.registration_no }} &middot; {{ active_pill(s.is_active) }}</p>
+    </div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{{ url_for('students.index') }}" class="btn btn-outline-secondary btn-sm">Back to students</a>
+    {% if current_user.role == 'admin' %}
+      <a href="{{ url_for('students.edit', student_id=s.student_id) }}" class="btn btn-primary btn-sm">Edit</a>
+      {% if s.is_active %}
+        {{ confirm_button(url_for('students.deactivate', student_id=s.student_id),
+             "Deactivate " ~ s.full_name ~ "? This student will no longer be able to log in. You can reactivate the account later.", "Deactivate") }}
+      {% else %}
+        {{ confirm_button(url_for('students.activate', student_id=s.student_id),
+             "Reactivate " ~ s.full_name ~ "? This student will be able to log in again.", "Reactivate", "success") }}
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <section class="app-card h-100">
+      <div class="card-title-row"><h2>Personal details</h2></div>
+      <dl class="detail-list">
+        <dt>Email</dt><dd>{{ s.email }}</dd>
+        <dt>Phone</dt><dd>{{ s.phone }}</dd>
+        <dt>Gender</dt><dd>{{ s.gender }}</dd>
+        <dt>Room</dt><dd>{{ s.room_no }}</dd>
+        <dt>Department</dt><dd>{{ s.department }}</dd>
+        <dt>Session</dt><dd>{{ s.session }}</dd>
+      </dl>
+    </section>
+  </div>
+  <div class="col-lg-6">
+    <section class="app-card mb-3">
+      <div class="card-title-row"><h2>Face enrollment</h2>
+        {% if current_user.role == 'admin' and s.is_active %}
+          <a href="{{ url_for('enrollment.capture', student_id=s.student_id) }}" class="btn btn-sm {{ 'btn-outline-primary' if bio.enrolled else 'btn-primary' }}">{{ icon('camera', 16) }} {{ 'Re-enroll' if bio.enrolled else 'Enroll face' }}</a>
+        {% endif %}
+      </div>
+      <dl class="detail-list">
+        <dt>Status</dt>
+        <dd>{% if bio.enrolled %}<span class="pill pill-ok">Enrolled</span>{% else %}<span class="pill pill-muted">Not enrolled</span>{% endif %}</dd>
+        {% if bio.enrolled %}
+        <dt>Samples</dt><dd>{{ bio.face_samples }}</dd>
+        <dt>Enrolled</dt><dd>{{ bio.enrolled_at|localtime }}</dd>
+        {% endif %}
+      </dl>
+    </section>
+    <section class="app-card mb-3">
+      <div class="card-title-row"><h2>Warden</h2></div>
+      <dl class="detail-list">
+        <dt>Assigned warden</dt>
+        <dd>{{ s.warden_name or 'Not assigned' }}{% if s.warden_name and not s.warden_active %} <span class="text-muted">(deactivated)</span>{% endif %}</dd>
+      </dl>
+    </section>
+    <section class="app-card">
+      <div class="card-title-row"><h2>Parent / guardian</h2></div>
+      <dl class="detail-list">
+        <dt>Name</dt><dd>{{ s.parent_name }}</dd>
+        <dt>Email</dt><dd>{{ s.parent_email }}</dd>
+      </dl>
+    </section>
+  </div>
+</div>
+{% endblock %}
