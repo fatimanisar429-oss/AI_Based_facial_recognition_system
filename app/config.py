@@ -55,7 +55,7 @@ class Config:
     BIOMETRIC_KEY = os.environ.get("BIOMETRIC_KEY", "")
 
     # Recognition thresholds (tuned in Phase 7)
-    FACE_THRESHOLD = float(os.environ.get("FACE_THRESHOLD", "0.5"))
+    FACE_THRESHOLD = float(os.environ.get("FACE_THRESHOLD", "0.55"))
 
     # --- Entry verification (Phase 7) ---
     # Who may use the entry terminal without logging in. Only the gate computer itself by default (SRS 3.3).
@@ -69,9 +69,9 @@ class Config:
     LIVENESS_WORK_SIDE = int(os.environ.get("LIVENESS_WORK_SIDE", "640"))
     FACE_FRAME_RATIO = 0.6                                           # share of frames that must show exactly one face
     MULTI_FACE_RATIO = 0.2                                           # more than this share with 2+ faces => deny
-    BLINK_DROP_RATIO = float(os.environ.get("BLINK_DROP_RATIO", "0.78"))
-    BLINK_OPEN_RATIO = 0.90
-    BLINK_CLOSED_MAX_EAR = float(os.environ.get("BLINK_CLOSED_MAX_EAR", "0.25"))
+    BLINK_DROP_RATIO = float(os.environ.get("BLINK_DROP_RATIO", "0.82"))
+    BLINK_OPEN_RATIO = 0.88
+    BLINK_CLOSED_MAX_EAR = float(os.environ.get("BLINK_CLOSED_MAX_EAR", "0.27"))
     BLINK_MAX_CLOSED_FRAMES = 8
     EAR_MIN_BASELINE = 0.18
     # Eye-region fallback. OFF by default: in our measurements the eye-region template could not separate
@@ -92,13 +92,18 @@ class Config:
     FACE_MIN_PX = int(os.environ.get("FACE_MIN_PX", "90"))            # face box width, in pixels
     BRIGHTNESS_MIN = float(os.environ.get("BRIGHTNESS_MIN", "45"))    # mean of the face area, 0-255
     BRIGHTNESS_MAX = float(os.environ.get("BRIGHTNESS_MAX", "215"))
-    SHARPNESS_MIN = float(os.environ.get("SHARPNESS_MIN", "30"))      # Laplacian variance of the face area
+    SHARPNESS_MIN = float(os.environ.get("SHARPNESS_MIN", "30"))      # Laplacian variance of the face area (enrollment)
+    VERIFY_SHARPNESS_MIN = float(os.environ.get("VERIFY_SHARPNESS_MIN", "12"))  # the entry terminal is more forgiving
     ENROLL_CONSISTENCY_MAX = float(os.environ.get("ENROLL_CONSISTENCY_MAX", "0.5"))  # samples must be one person
 
-    # Email (optional)
-    MAIL_SERVER = os.environ.get("MAIL_SERVER", "")
-    MAIL_PORT = int(os.environ.get("MAIL_PORT", "587"))
-    MAIL_USE_TLS = os.environ.get("MAIL_USE_TLS", "1") == "1"
-    MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "")
-    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
-    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "")
+    # Email (optional). Pasted values are cleaned: Gmail shows app passwords in groups ("abcd efgh ijkl mnop"); the spaces are not part of it.
+    MAIL_SERVER = os.environ.get("MAIL_SERVER", "").strip()
+    MAIL_PORT = int(os.environ.get("MAIL_PORT", "587") or 587)
+    MAIL_USERNAME = os.environ.get("MAIL_USERNAME", "").strip()
+    MAIL_PASSWORD = "".join(os.environ.get("MAIL_PASSWORD", "").split())
+    # Port 465 means "SSL from the first byte"; any other port uses STARTTLS (MAIL_USE_TLS). The two are never both on.
+    MAIL_USE_SSL = os.environ.get("MAIL_USE_SSL", "1" if MAIL_PORT == 465 else "0") == "1"
+    MAIL_USE_TLS = (os.environ.get("MAIL_USE_TLS", "1") == "1") and not MAIL_USE_SSL
+    # Most providers need the sender to be the login address, so that is the default.
+    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "").strip() or MAIL_USERNAME
+    MAIL_TIMEOUT = int(os.environ.get("MAIL_TIMEOUT", "20") or 20)     # seconds; a dead server must not hang the app

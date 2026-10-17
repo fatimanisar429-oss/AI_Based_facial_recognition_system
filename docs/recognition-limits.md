@@ -24,8 +24,8 @@ Encoding distances measured on 7 public photos of 4 people (one person has 4 dif
 | Same person, different photos | 0.05 to 0.37 |
 | Different people (15 pairs) | 0.71 to 0.90 (median 0.81) |
 
-The default threshold **0.5** (`FACE_THRESHOLD`, from the SRS; the library default is 0.6) lies in the gap with room
-on both sides. Caveats: only 4 people; photos are not webcam frames; twins and look-alikes will be closer.
+The default threshold is **0.55** (`FACE_THRESHOLD`; the SRS value was 0.5, the library default is 0.6). It was raised
+from 0.5 after the gate log showed real students being rejected; it still lies in the gap with room on both sides. Caveats: only 4 people; photos are not webcam frames; twins and look-alikes will be closer.
 
 Safety rules on top of the threshold:
 
@@ -34,11 +34,25 @@ Safety rules on top of the threshold:
 * The same face cannot be enrolled for two students (checked at enrollment).
 * Only **active** students' templates are loaded for matching.
 
+### 1b. Final tuning against false rejects (October 2026)
+
+The gate log of the first real-webcam session showed that almost every rejection was **"Image blurry"** (the sharpness rule) or
+**"no blink"**, not a wrong face. So the changes were made there, not by loosening who is accepted:
+
+| Change | Why it cannot let a stranger in |
+|---|---|
+| The gate's sharpness limit is 12 (`VERIFY_SHARPNESS_MIN`); enrollment stays at 30 | A soft picture only makes the face distance larger. The face distance still decides. |
+| The 3 sharpest open-eyed frames are matched, and the smallest distance counts | Frames of one live person; a stranger is 0.71+ away in every frame. The two-students-equal "ambiguous" rule is unchanged. |
+| Threshold 0.5 -> 0.55 | Same person measured up to 0.37, different people from 0.71. |
+| Blink: `BLINK_DROP_RATIO` 0.82, `BLINK_OPEN_RATIO` 0.88, `BLINK_CLOSED_MAX_EAR` 0.27 | Liveness is not identity; a gentler dip is accepted, a still photo (no dip) is still refused. |
+
+Everything above is a setting in `.env` and can be tightened again. Re-measure on the real gate camera before claiming accuracy.
+
 ## 2. Liveness (blink)
 
 * Method: eye aspect ratio (EAR) from dlib's 68 landmarks across about 30 frames (one every 110 ms). A blink is a
-  run of frames where EAR is clearly below the person's own normal (`BLINK_DROP_RATIO` 0.78) **and** below an absolute
-  limit (`BLINK_CLOSED_MAX_EAR` 0.25), with open-eyed frames before and after. Typical EAR is 0.22 to 0.41 for open
+  run of frames where EAR is clearly below the person's own normal (`BLINK_DROP_RATIO` 0.82, was 0.78) **and** below an absolute
+  limit (`BLINK_CLOSED_MAX_EAR` 0.27, was 0.25), with open-eyed frames before and after. Typical EAR is 0.22 to 0.41 for open
   eyes (it differs a lot between people, hence the relative rule).
 * Tested with a **simulated** blink (eyes painted shut in a real face picture, EAR about 0.15) through the real
   pipeline and through a real browser with a fake camera: the "blinking" person is admitted, a still picture

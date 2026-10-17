@@ -14,6 +14,7 @@ from conftest import get_token, login, token_when_logged_in
 ROOT = Path(__file__).resolve().parent.parent
 ADMIN, WARDEN, STUDENT = {"admin"}, {"warden"}, {"student"}
 STAFF = ADMIN | WARDEN
+EVERYONE = ADMIN | WARDEN | STUDENT
 
 # endpoint -> roles allowed to use it
 POLICY = {
@@ -31,6 +32,7 @@ POLICY = {
     "alerts.index": STAFF, "alerts.acknowledge": WARDEN, "alerts.mine": STUDENT, "alerts.emergency": STUDENT,
     "guests.mine": STUDENT, "guests.new": STUDENT, "guests.mine_detail": STUDENT,
     "guests.requests_list": STAFF, "guests.review": STAFF, "guests.decide": WARDEN,
+    "account.index": EVERYONE, "account.update_email": EVERYONE, "account.update_password": EVERYONE,
     "guests.enroll": STAFF, "guests.enroll_check": STAFF, "guests.enroll_save": STAFF, "guests.enroll_remove": STAFF,
 }
 PUBLIC = {"home", "health", "auth.login", "auth.logout", "auth.dev_login"}      # logout/login/dev-login do their own checks

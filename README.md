@@ -5,7 +5,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5-7952B3?logo=bootstrap&logoColor=white)
 ![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?logo=opencv&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-875%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-908%20passing-brightgreen)
 
 A final-year-project web application for **a single hostel**. Students enter by **face recognition with a blink (liveness) check**
 using the browser's built-in camera. The system records every entry, builds daily attendance, handles guest visits, raises
@@ -23,6 +23,7 @@ emergency and security alerts, and emails parents a weekly report.
 
 ## Features
 - **Three roles** (admin, warden, student) with server-side role checks on every page
+- **My account** page for every role: change your own email and password (asks for the current password)
 - **Face enrollment** in the browser: 5 quality-checked samples, consent required, photos are never stored (only an encrypted template)
 - **Entry terminal** (no login, gate computer only): face match + blink liveness check, clear result and reason
 - **Automatic attendance**: Present / Late by curfew, hostel-day logic (a 00:30 arrival counts for the previous day)
@@ -34,7 +35,7 @@ emergency and security alerts, and emails parents a weekly report.
 - **Reports**: daily, weekly and monthly; attendance, security and parent-email tabs; search, sort, print layout
 - **Responsive UI** for phone, tablet and desktop (checked in a real browser)
 - **Security**: hashed passwords, login lockout, idle session timeout, CSRF tokens, parameterized SQL, safe error pages, security headers
-- **875 automated tests**, including an access-control test for every route and every role
+- **908 automated tests**, including an access-control test for every route and every role
 
 ## Tech stack
 | Part | Technology |
@@ -105,9 +106,9 @@ HTTPS before the browser permits the camera. Details and troubleshooting: [docs/
 ## Pages by role
 | Role | What they can do |
 |---|---|
-| Admin | Students and wardens, face enrollment, settings, emergency contacts, email status, reports, logs, attendance, alerts |
-| Warden | Students (view), attendance, logs, exits, guest requests (approve/reject, enroll a guest's face), alerts (acknowledge), reports |
-| Student | Own dashboard, own attendance, guest visit requests, emergency button |
+| Admin | Own account (email and password), students and wardens, face enrollment, settings, emergency contacts, email status, reports, logs, attendance, alerts |
+| Warden | Own account (email and password), students (view), attendance, logs, exits, guest requests (approve/reject, enroll a guest's face), alerts (acknowledge), reports |
+| Student | Own account (email and password), own dashboard, own attendance, guest visit requests, emergency button |
 | Entry terminal (`/terminal/`) | No login; works only from the gate computer (see `TERMINAL_ADDRESSES`) |
 
 ## Tests

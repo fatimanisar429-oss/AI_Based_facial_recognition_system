@@ -42,7 +42,13 @@ An *Unauthorized Attempt* alert is raised when **3 counted failures happen withi
 * **Check your settings:** Admin → **Email** → *Send test*, or `flask --app run send-test-email --to you@example.com`.
 
 `.env` settings: `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USE_TLS`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_DEFAULT_SENDER`.
-For Gmail use an *app password*, port 587, TLS on.
+For Gmail use an *app password*, port 587, TLS on:
+
+1. Google Account > Security > turn on **2-Step Verification**, then **App passwords** > create one (16 letters; pasting it with spaces is fine).
+2. In `.env`: `MAIL_SERVER=smtp.gmail.com`, `MAIL_PORT=587`, `MAIL_USE_TLS=1`, `MAIL_USERNAME=you@gmail.com`,
+   `MAIL_PASSWORD=<the app password>`. `MAIL_DEFAULT_SENDER` defaults to `MAIL_USERNAME` (Gmail needs them to match).
+3. Restart the app, then Admin > **Email** > *Send test*. Then press **Retry failed** to send messages that were marked Skipped earlier.
+4. Port 465 works too (SSL is chosen automatically). A mail server that does not answer gives up after `MAIL_TIMEOUT` (20 s).
 
 ## Weekly parent report
 

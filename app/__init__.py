@@ -3,7 +3,7 @@ from flask import Flask, g, jsonify, redirect, url_for
 
 from . import cli, db, navigation, security
 from .services import emailer, scheduler
-from .blueprints import (alerts, attendance, auth, contacts, dashboards, emails, enrollment, exits, guests, logs, reports, settings, students,
+from .blueprints import (account, alerts, attendance, auth, contacts, dashboards, emails, enrollment, exits, guests, logs, reports, settings, students,
                          terminal, wardens)
 from .config import Config
 from .timeutil import format_local
@@ -48,6 +48,7 @@ def create_app(test_config=None):
     app.register_blueprint(contacts.bp)
     app.register_blueprint(emails.bp)
     app.register_blueprint(reports.bp)
+    app.register_blueprint(account.bp)
 
     @app.get("/health")
     def health():

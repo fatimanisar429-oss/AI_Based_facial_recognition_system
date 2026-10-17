@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "_macros.html" import form_field %}
+{% block title %}My account - Hostel Security{% endblock %}
+{% block content %}
+<div class="page-header"><h1>My account</h1><p>Change the email and password you use to log in.</p></div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <section class="app-card">
+      <div class="card-title-row"><h2>Profile</h2></div>
+      <dl class="detail-list">
+        <dt>Name</dt><dd>{{ current_user.full_name }}</dd>
+        <dt>Role</dt><dd>{{ current_user.role|capitalize }}</dd>
+        <dt>Email</dt><dd>{{ current_user.email }}</dd>
+      </dl>
+      <p class="small text-muted px-3 pb-3 mb-0">Your name and other details are managed by an administrator.</p>
+    </section>
+
+    <section class="app-card mt-3">
+      <div class="card-title-row"><h2>Change email</h2></div>
+      <form method="post" action="{{ url_for('account.update_email') }}" novalidate data-once class="card-body-pad">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {{ form_field("email", "New email", type="email", value=email_value, error=email_errors.get('email'),
+                      autocomplete="email", maxlength=100) }}
+        {{ form_field("email_current_password", "Current password", type="password", error=email_errors.get('email_current_password'),
+                      autocomplete="current-password", hint="We ask for it to make sure it is really you.") }}
+        <button type="submit" class="btn btn-primary" data-loading-text="Saving...">Save email</button>
+      </form>
+    </section>
+  </div>
+
+  <div class="col-lg-6">
+    <section class="app-card">
+      <div class="card-title-row"><h2>Change password</h2></div>
+      <form method="post" action="{{ url_for('account.update_password') }}" novalidate data-once class="card-body-pad">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {{ form_field("current_password", "Current password", type="password", error=password_errors.get('current_password'),
+                      autocomplete="current-password") }}
+        {{ form_field("new_password", "New password", type="password", error=password_errors.get('new_password'),
+                      autocomplete="new-password", maxlength=128, hint="At least 8 characters.") }}
+        {{ form_field("confirm_password", "Confirm new password", type="password", error=password_errors.get('confirm_password'),
+                      autocomplete="new-password", maxlength=128) }}
+        <button type="submit" class="btn btn-primary" data-loading-text="Saving...">Change password</button>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

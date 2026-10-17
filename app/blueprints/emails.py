@@ -24,7 +24,7 @@ def index():
                       f"SELECT * FROM email_outbox {where} ORDER BY email_id DESC", params, page)
     counts = {r["status"]: r["n"] for r in db.execute("SELECT status, COUNT(*) AS n FROM email_outbox GROUP BY status")}
     smtp = {"configured": emailer.smtp_configured(cfg), "server": cfg["MAIL_SERVER"], "port": cfg["MAIL_PORT"],
-            "tls": cfg["MAIL_USE_TLS"], "sender": cfg["MAIL_DEFAULT_SENDER"], "login": bool(cfg["MAIL_USERNAME"])}   # never the password
+            "tls": cfg["MAIL_USE_TLS"] or cfg["MAIL_USE_SSL"], "sender": cfg["MAIL_DEFAULT_SENDER"], "login": bool(cfg["MAIL_USERNAME"])}   # never the password
     return render_template("emails/index.html", title="Email", result=result, status=status, statuses=STATUSES, counts=counts, smtp=smtp)
 
 

@@ -40,9 +40,18 @@ MESSAGES = {
 }
 
 
+def _verify_limits(cfg):
+    """Quality limits for the gate. The sharpness limit is lower than at enrollment: a person who is walking up and blinking
+    is a little softer than one sitting still, and a soft picture only makes the match WORSE (never a false accept), so the
+    face distance, not a hard blur rule, decides."""
+    from dataclasses import replace
+    base = R.Limits.from_config(cfg)
+    return replace(base, sharpness_min=min(base.sharpness_min, cfg.get("VERIFY_SHARPNESS_MIN", 12)))
+
+
 @dataclass(frozen=True)
 class Settings:
-    face_threshold: float = 0.5
+    face_threshold: float = 0.55
     face_margin: float = 0.04
     eye_fallback: bool = False
     eye_threshold: float = 0.06
@@ -53,9 +62,9 @@ class Settings:
     work_side: int = 640
     face_frame_ratio: float = 0.6
     multi_face_ratio: float = 0.2
-    blink_drop: float = 0.78
-    blink_open: float = 0.90
-    blink_closed_max_ear: float = 0.25
+    blink_drop: float = 0.82
+    blink_open: float = 0.88
+    blink_closed_max_ear: float = 0.27
     blink_max_closed: int = 8
     ear_min_baseline: float = 0.18
     limits: R.Limits = field(default_factory=R.Limits)
@@ -69,7 +78,7 @@ class Settings:
             face_frame_ratio=cfg["FACE_FRAME_RATIO"], multi_face_ratio=cfg["MULTI_FACE_RATIO"],
             blink_drop=cfg["BLINK_DROP_RATIO"], blink_open=cfg["BLINK_OPEN_RATIO"],
             blink_closed_max_ear=cfg["BLINK_CLOSED_MAX_EAR"], blink_max_closed=cfg["BLINK_MAX_CLOSED_FRAMES"],
-            ear_min_baseline=cfg["EAR_MIN_BASELINE"], limits=R.Limits.from_config(cfg))
+            ear_min_baseline=cfg["EAR_MIN_BASELINE"], limits=_verify_limits(cfg))
 
 
 @dataclass
@@ -203,11 +212,12 @@ def _robust_ear(rgb, box):
     return float(np.median(readings)) if readings else None
 
 
-def pick_best_frame(frames, boxes, ears, s):
-    """Index of the sharpest frame in which the eyes are open (so the face encoding is not taken mid-blink)."""
+def pick_best_frames(frames, boxes, ears, s, count=3):
+    """Indices (best first) of up to `count` sharpest frames with open eyes. Matching several frames of the same live
+    person makes one unlucky frame (odd expression, motion blur) unable to reject a real student."""
     values = [e for e in ears if e is not None]
     baseline = float(np.percentile(values, 75))
-    best, best_sharp = None, -1.0
+    scored = []
     for i, (box, ear) in enumerate(zip(boxes, ears)):
         if box is None or ear is None or ear < baseline * s.blink_open:
             continue
@@ -215,12 +225,18 @@ def pick_best_frame(frames, boxes, ears, s):
             _, sharp = R.measure_face(frames[i], box)
         except R.ImageError:
             continue
-        if sharp > best_sharp:
-            best, best_sharp = i, sharp
-    return best
+        scored.append((sharp, i))
+    scored.sort(reverse=True)
+    return [i for _, i in scored[:count]]
 
 
 # ---------- the decision (pure: no camera, no database) ----------
+
+def _min_distance(known, encoding):
+    """Smallest distance between any stored template and any of the candidate encodings (one array or a list of them)."""
+    candidates = np.atleast_2d(np.asarray(encoding, dtype=np.float64))
+    return float(min(R.face_distance(known, c).min() for c in candidates))
+
 
 def decide(encoding, eye_template, gallery_faces, gallery_eyes, s):
     """Who is this? gallery_faces: {student_id: [encoding arrays]}, gallery_eyes: {student_id: [eye templates]}.
@@ -228,7 +244,7 @@ def decide(encoding, eye_template, gallery_faces, gallery_eyes, s):
     if not gallery_faces:
         return deny("no_enrolled", checks={"face": "ok", "liveness": "ok", "recognition": "failed"})
 
-    ranked = sorted(((float(R.face_distance(t, encoding).min()), sid) for sid, t in gallery_faces.items()))
+    ranked = sorted(((_min_distance(t, encoding), sid) for sid, t in gallery_faces.items()))
     best_distance, best_id = ranked[0]
     checks = {"face": "ok", "liveness": "ok", "recognition": "failed"}
 
@@ -264,7 +280,7 @@ def consider_guests(decision, encoding, guest_faces, s):
     * Face matches exactly one guest only        -> a guest candidate (still NOT granted; the visit rules decide)."""
     if not guest_faces:
         return decision
-    ranked = sorted((float(R.face_distance(t, encoding).min()), gid) for gid, t in guest_faces.items())
+    ranked = sorted((_min_distance(t, encoding), gid) for gid, t in guest_faces.items())
     best_distance, best_id = ranked[0]
     if best_distance >= s.face_threshold:
         return decision
@@ -308,9 +324,10 @@ def _verify(frame_bytes, gallery_faces, gallery_eyes, s, guest_faces):
         return deny("liveness_failed", liveness="failed",
                     checks={"face": "ok", "liveness": "failed", "recognition": "skipped"})
 
-    index = pick_best_frame(frames, boxes, ears, s)
-    if index is None:
+    indices = pick_best_frames(frames, boxes, ears, s)
+    if not indices:
         return deny("bad_frames", liveness="passed", checks={"face": "ok", "liveness": "ok", "recognition": "skipped"})
+    index = indices[0]
     try:
         found = R.find_face(frames[index], s.limits)               # same quality rules as enrollment
     except R.ImageError as err:
@@ -320,6 +337,12 @@ def _verify(frame_bytes, gallery_faces, gallery_eyes, s, guest_faces):
     encodings = face_recognition.face_encodings(frames[index], [found.location], num_jitters=1)
     if not encodings:
         return deny("bad_frames", liveness="passed", checks={"face": "failed", "liveness": "ok", "recognition": "skipped"})
+    for extra in indices[1:]:                                       # a few more frames of the same person
+        try:
+            other = R.find_face(frames[extra], s.limits)
+        except R.ImageError:
+            continue
+        encodings += face_recognition.face_encodings(frames[extra], [other.location], num_jitters=1)
     eye = None
     if s.eye_fallback:
         try:
@@ -327,7 +350,7 @@ def _verify(frame_bytes, gallery_faces, gallery_eyes, s, guest_faces):
         except R.ImageError:
             eye = None
 
-    encoding = np.asarray(encodings[0], dtype=np.float64)
+    encoding = np.asarray(encodings, dtype=np.float64)           # one row per frame used
     decision = decide(encoding, eye, gallery_faces, gallery_eyes, s)
     decision = consider_guests(decision, encoding, guest_faces, s)
     decision.liveness = "passed"

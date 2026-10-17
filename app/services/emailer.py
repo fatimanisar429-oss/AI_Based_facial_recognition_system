@@ -6,15 +6,43 @@ How it works
   3. A row ends as Sent, Failed (will be retried, up to EMAIL_MAX_ATTEMPTS) or Skipped (no mail server is configured).
 So a slow or broken mail server never delays a page and can never lose an alert. Passwords are never logged or stored in an error.
 """
+import smtplib
 import threading
 from concurrent.futures import ThreadPoolExecutor
 
-from flask_mail import Mail, Message
+from flask import current_app
+from flask_mail import Connection, Mail, Message
 
 from ..db import connect
 from ..timeutil import utc_now_text
 
-mail = Mail()
+class _TimeoutConnection(Connection):
+    """Flask-Mail connects without a timeout, so an unreachable mail server could block for minutes. This one gives up."""
+
+    def configure_host(self):
+        timeout = getattr(self.mail, "timeout", 20)
+        if self.mail.use_ssl:
+            host = smtplib.SMTP_SSL(self.mail.server, self.mail.port, timeout=timeout)
+        else:
+            host = smtplib.SMTP(self.mail.server, self.mail.port, timeout=timeout)
+        if self.mail.use_tls:
+            host.starttls()
+        if self.mail.username and self.mail.password:
+            host.login(self.mail.username, self.mail.password)
+        return host
+
+
+class _TimeoutMail(Mail):
+    def init_app(self, app):
+        state = super().init_app(app)
+        state.timeout = app.config.get("MAIL_TIMEOUT", 20)
+        return state
+
+    def connect(self):
+        return _TimeoutConnection(current_app.extensions["mail"])
+
+
+mail = _TimeoutMail()
 _executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="email")
 _send_lock = threading.Lock()                       # one sender at a time, so a message is never sent twice
 
@@ -36,7 +64,22 @@ def clean_error(error, cfg):
     for secret in (cfg.get("MAIL_PASSWORD"), cfg.get("MAIL_USERNAME")):
         if secret:
             text = text.replace(str(secret), "***")
-    return " ".join(text.split())[:200]
+    hint = _hint(error)
+    text = " ".join(text.split())[:200 - (len(hint) + 3 if hint else 0)]
+    return f"{text} ({hint})" if hint else text
+
+
+def _hint(error):
+    """A plain-language next step for the usual mail mistakes."""
+    if isinstance(error, smtplib.SMTPAuthenticationError):
+        return "Login refused: use a Gmail App Password, not the normal password"
+    if isinstance(error, (TimeoutError, OSError)) and not isinstance(error, smtplib.SMTPException):
+        return "Cannot reach the server: check MAIL_SERVER, MAIL_PORT, internet"
+    if isinstance(error, smtplib.SMTPSenderRefused):
+        return "Sender refused: MAIL_DEFAULT_SENDER must equal MAIL_USERNAME"
+    if isinstance(error, smtplib.SMTPRecipientsRefused):
+        return "The recipient address was refused"
+    return ""
 
 
 # ---------- queueing ----------

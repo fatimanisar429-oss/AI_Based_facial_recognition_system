@@ -27,6 +27,7 @@ NAV = {
         ("Email", "emails.index", "mail"),
         ("Reports", "reports.index", "file-text"),
         ("Settings", "settings.index", "sliders"),
+        ("My account", "account.index", "user"),
     ],
     "warden": [
         ("Dashboard", "dashboards.warden_dashboard", "grid"),
@@ -38,12 +39,14 @@ NAV = {
         ("Guest requests", "guests.requests_list", "user-plus"),
         ("Alerts", "alerts.index", "bell"),
         ("Reports", "reports.index", "file-text"),
+        ("My account", "account.index", "user"),
     ],
     "student": [
         ("Dashboard", "dashboards.student_dashboard", "grid"),
         ("My attendance", "attendance.mine", "calendar"),
         ("Guest requests", "guests.mine", "user-plus"),
         ("Emergency alert", "alerts.mine", "alert-triangle"),
+        ("My account", "account.index", "user"),
     ],
 }
 

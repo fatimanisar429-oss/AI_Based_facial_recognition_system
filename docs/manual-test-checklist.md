@@ -60,10 +60,18 @@ Use Edge or Chrome at `http://127.0.0.1:5000`.
 - [ ] Print (Ctrl+P) shows a clean report without the menu and buttons
 - [ ] `flask --app run send-weekly-reports` creates one report per student; running it again creates none (no duplicates)
 
-## 9. Screens
+## 9. My account (all roles)
+- [ ] Menu -> My account opens for admin, warden and student
+- [ ] Change email with a wrong current password -> "current password is not correct"; nothing changes
+- [ ] Change email to one used by another account -> "already used"; to the right new email -> saved, and login works with the new email only
+- [ ] Change password: too short, mismatching confirmation, or same as the old one -> clear error each time
+- [ ] Change password correctly -> still logged in; the old password no longer logs in, the new one does
+- [ ] 5 wrong current passwords -> "Too many failed attempts"
+
+## 10. Screens
 - [ ] Resize the browser to phone width (about 390 px), tablet (768) and desktop: no sideways page scroll; the menu opens with the hamburger button
 - [ ] Empty lists show a friendly message, not a blank page
 
-## 10. Secrets
+## 11. Secrets
 - [ ] `git status` does not list `.env`, `instance/` or any `.db` file
 - [ ] `.env.example` contains no real passwords or keys
