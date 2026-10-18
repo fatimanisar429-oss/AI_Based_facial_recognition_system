@@ -8,6 +8,9 @@ This is a student project. It demonstrates the idea; it is **not** a certified o
 - **"Iris recognition" is not real iris recognition.** A browser webcam cannot capture iris texture. The optional eye-region
   fallback compares the eye area only, could not reliably separate different people in our measurements, and is therefore
   **off by default** ([recognition-limits.md](recognition-limits.md)).
+- **Covered faces (niqab) are not identified.** Measured: matching the eye slit alone let far too many strangers through
+  ([recognition-limits.md](recognition-limits.md), section 3b). The terminal tells the person to ask the warden; the attempt is
+  logged as "Face covered" and flagged for review. The warden verifies in person.
 - Face matching can fail in poor light, with masks or heavy occlusion, with big pose changes, and for twins or close relatives.
   When two people are too similar the system denies the entry rather than guessing.
 - Accuracy was measured on a small set of images, not a large population. Do not claim a percentage for real use.

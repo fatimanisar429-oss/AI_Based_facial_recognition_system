@@ -15,6 +15,7 @@ FAILURE_LABELS = {
     "not_recognized": "Face not recognised",
     "ambiguous": "Inconclusive: two students matched closely",
     "no_face": "No face detected",
+    "face_covered": "Face covered (eyes only): needs the warden to verify in person",
     "multiple_faces": "More than one face in view",
     "face_too_small": "Face too far from the camera",
     "too_dark": "Image too dark",

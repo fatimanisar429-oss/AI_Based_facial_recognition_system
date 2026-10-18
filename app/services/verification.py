@@ -16,6 +16,7 @@ face recognition is not production-grade biometric security.
 """
 import threading
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import cv2
 import face_recognition
@@ -32,6 +33,7 @@ MESSAGES = {
     "not_recognized": "Face not recognised.",
     "ambiguous": "Verification was inconclusive. Please contact the warden.",
     "no_face": "No face detected. Face the camera straight on, in good light.",
+    "face_covered": "Your face is covered, so it cannot be verified automatically. Please ask the warden to verify you in person.",
     "multiple_faces": "More than one face is visible. Only one person may be in front of the camera.",
     "bad_frames": "The camera pictures could not be used. Please try again.",
     "no_enrolled": "No students are enrolled yet.",
@@ -160,6 +162,38 @@ def _steady_box(box, median, tolerance):
     face_w = max(median[1] - median[3], 1)
     shift = max(abs(box[0] - median[0]), abs(box[1] - median[1]), abs(box[2] - median[2]), abs(box[3] - median[3]))
     return median if shift <= tolerance * face_w else box
+
+
+_YUNET_FILE = Path(__file__).resolve().parent.parent / "models" / "face_detection_yunet_2023mar.onnx"
+_yunet = None
+
+
+def _yunet_detector():
+    global _yunet
+    if _yunet is None:
+        _yunet = cv2.FaceDetectorYN.create(str(_YUNET_FILE), "", (320, 320), 0.6, 0.3, 5000)
+    return _yunet
+
+
+def looks_covered(frames, s, min_share=0.4):
+    """True when the frames show a face-like head that dlib could not use (a niqab, a scarf, a mask: the eyes are visible).
+
+    dlib's detector found a face in 0 of 91 covered test pictures; YuNet found one in 71 of 91. It only decides which MESSAGE
+    the person sees. Nothing is ever recognised or granted from a covered face: matching just the eye area let about 17 in 100
+    strangers through at a point where 8 in 100 real people were refused (docs/recognition-limits.md, section 3b)."""
+    try:
+        detector = _yunet_detector()
+    except cv2.error:
+        return False                                # model file missing: keep the plain "no face" message
+    seen = 0
+    for rgb in frames:
+        small, _ = _shrink(rgb, s.work_side)
+        height, width = small.shape[:2]
+        detector.setInputSize((width, height))
+        _, found = detector.detect(cv2.cvtColor(small, cv2.COLOR_RGB2BGR))
+        if found is not None and len(found) == 1:
+            seen += 1
+    return bool(frames) and seen / len(frames) >= min_share
 
 
 def measure_frames(frames, s):
@@ -317,6 +351,10 @@ def _verify(frame_bytes, gallery_faces, gallery_eyes, s, guest_faces):
         return deny("multiple_faces", checks={"face": "failed", "liveness": "skipped", "recognition": "skipped"})
     single = sum(1 for c in counts if c == 1)
     if single / total < s.face_frame_ratio:
+        if looks_covered(frames, s):
+            # A covered face is never identified (too unreliable, see looks_covered). It is flagged so the warden sees it.
+            return deny("face_covered", needs_review=True,
+                        checks={"face": "failed", "liveness": "skipped", "recognition": "skipped"})
         return deny("no_face", checks={"face": "failed", "liveness": "skipped", "recognition": "skipped"})
 
     blinked, _ = blink_detected(ears, s)
@@ -337,12 +375,6 @@ def _verify(frame_bytes, gallery_faces, gallery_eyes, s, guest_faces):
     encodings = face_recognition.face_encodings(frames[index], [found.location], num_jitters=1)
     if not encodings:
         return deny("bad_frames", liveness="passed", checks={"face": "failed", "liveness": "ok", "recognition": "skipped"})
-    for extra in indices[1:]:                                       # a few more frames of the same person
-        try:
-            other = R.find_face(frames[extra], s.limits)
-        except R.ImageError:
-            continue
-        encodings += face_recognition.face_encodings(frames[extra], [other.location], num_jitters=1)
     eye = None
     if s.eye_fallback:
         try:
@@ -352,6 +384,13 @@ def _verify(frame_bytes, gallery_faces, gallery_eyes, s, guest_faces):
 
     encoding = np.asarray(encodings, dtype=np.float64)           # one row per frame used
     decision = decide(encoding, eye, gallery_faces, gallery_eyes, s)
+    if decision.code == "not_recognized":
+        # One unlucky frame (odd expression, motion blur) must not reject a real student: try the next-sharpest frames of the
+        # same burst (their boxes are already known). A clear match stops after one frame, so it costs no extra time.
+        for extra in indices[1:]:
+            encodings += face_recognition.face_encodings(frames[extra], [boxes[extra]], num_jitters=1)
+        encoding = np.asarray(encodings, dtype=np.float64)
+        decision = decide(encoding, eye, gallery_faces, gallery_eyes, s)
     decision = consider_guests(decision, encoding, guest_faces, s)
     decision.liveness = "passed"
     return decision

@@ -5,7 +5,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-003B57?logo=sqlite&logoColor=white)
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5-7952B3?logo=bootstrap&logoColor=white)
 ![OpenCV](https://img.shields.io/badge/OpenCV-5C3EE8?logo=opencv&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-908%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-914%20passing-brightgreen)
 
 A final-year-project web application for **a single hostel**. Students enter by **face recognition with a blink (liveness) check**
 using the browser's built-in camera. The system records every entry, builds daily attendance, handles guest visits, raises
@@ -35,7 +35,7 @@ emergency and security alerts, and emails parents a weekly report.
 - **Reports**: daily, weekly and monthly; attendance, security and parent-email tabs; search, sort, print layout
 - **Responsive UI** for phone, tablet and desktop (checked in a real browser)
 - **Security**: hashed passwords, login lockout, idle session timeout, CSRF tokens, parameterized SQL, safe error pages, security headers
-- **908 automated tests**, including an access-control test for every route and every role
+- **914 automated tests**, including an access-control test for every route and every role
 
 ## Tech stack
 | Part | Technology |

@@ -68,6 +68,12 @@ Use Edge or Chrome at `http://127.0.0.1:5000`.
 - [ ] Change password correctly -> still logged in; the old password no longer logs in, the new one does
 - [ ] 5 wrong current passwords -> "Too many failed attempts"
 
+## 9b. Covered face (niqab or scarf)
+- [ ] At the terminal, cover the face so only the eyes show -> "Your face is covered ... ask the warden to verify you in person"; ACCESS DENIED
+- [ ] Admin/Warden -> Entry log: the attempt shows "Face covered (eyes only)", Unidentified, with the Review tag
+- [ ] Three covered attempts in a row do NOT raise an "Unauthorized Attempt" alert
+- [ ] Then show the uncovered face: access is granted as usual
+
 ## 10. Screens
 - [ ] Resize the browser to phone width (about 390 px), tablet (768) and desktop: no sideways page scroll; the menu opens with the hamburger button
 - [ ] Empty lists show a friendly message, not a blank page

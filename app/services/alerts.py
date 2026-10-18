@@ -16,7 +16,7 @@ STATUSES = ("New", "Acknowledged")
 #  * Only attempts where a person was in front of the camera and could not be verified: failed blink, face not recognised,
 #    or two identities matched equally. These are identity problems, and the person is unknown, so they are counted for the
 #    terminal as a whole and never against a student.
-#  * NOT counted: no face / too dark / blurry / too far / unusable frames (technical, nobody was examined), nobody
+#  * NOT counted: covered face (a niqab: the warden verifies in person) / no face / too dark / blurry / too far / unusable frames (technical, nobody was examined), nobody
 #    enrolled, processing errors, and refusals of a recognised guest for visit rules (expired, used...).
 #  * A success in between does not reset the count; the window is a plain "last N minutes".
 COUNTED_CODES = ("liveness_failed", "not_recognized", "ambiguous")

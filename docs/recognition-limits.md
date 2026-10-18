@@ -75,6 +75,28 @@ measured whether it is reliable enough to trust:
 | Eye-region template (LBP) distance, same person vs different people | Same person: 0.140. Different people: min 0.117, median 0.486, max 1.123 (14 pairs). The same-person distance is **not smaller** than the closest different person, so the template cannot separate people reliably. |
 | Lower half of the face covered (a white rectangle over nose and mouth) | dlib found a face in 0 of 5 pictures; OpenCV's Haar face detector found one in 1 of 5 and no eyes in any. With the specified libraries the eyes of a covered face could not even be located. |
 
+### 3b. Covered face (niqab): measured on 91 public photos (October 2026)
+
+A niqab leaves only the eye slit. We simulated it on 91 public LFW photos (everything dark except the eyebrows-to-under-eyes
+strip) and compared dlib's face encoding on the covered pictures (genuine = the same photo with small changes in light, angle and
+sharpness, which is **easier** than real life):
+
+| | Full face | Covered (eyes only) |
+|---|---|---|
+| dlib finds the face | 91 of 91 | **0 of 91** (YuNet finds 71 of 91) |
+| Same person, mean distance | 0.06 | 0.29 (worst 0.65) |
+| Different people, median / closest | 0.82 / 0.31 | 0.61 / 0.10 |
+| At threshold 0.55: real people refused / strangers accepted (per comparison) | 0 % / 0.3 % | 3.9 % / **30 %** |
+| At threshold 0.45 | 0 % / 0.03 % | 14.5 % / **9.7 %** |
+
+With a gallery of N students the chance that a stranger matches somebody grows with N. So **a covered face cannot be identified
+safely with this stack**, and no threshold fixes it: the two groups of distances overlap.
+
+Decision: a covered face is **never recognised and never granted**. The terminal (YuNet is used only to notice a covered head)
+says *"Your face is covered ... ask the warden to verify you in person"*, the attempt is logged as `face_covered`, flagged for
+review, not attributed to any student, and **not** counted towards security alerts. The warden verifies in person.
+Real iris recognition needs a near-infrared iris camera; a webcam cannot do it. These numbers should go in the report as a finding.
+
 Conclusion: eye-region comparison with the specified stack is **not reliable enough to identify a person**, and the
 "covered face" case could not be made to work. Therefore:
 

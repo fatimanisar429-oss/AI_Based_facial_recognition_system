@@ -81,7 +81,7 @@ def test_port_465_means_ssl_not_starttls(monkeypatch):
 
 def test_sender_defaults_to_the_login_address(monkeypatch):
     monkeypatch.setenv("MAIL_USERNAME", "hostel@gmail.com")
-    monkeypatch.delenv("MAIL_DEFAULT_SENDER", raising=False)
+    monkeypatch.setenv("MAIL_DEFAULT_SENDER", "")             # empty, so a real .env value cannot leak into the test
     import importlib, app.config as cfg
     try:
         importlib.reload(cfg)
