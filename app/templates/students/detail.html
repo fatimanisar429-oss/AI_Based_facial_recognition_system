@@ -56,6 +56,24 @@
         {% endif %}
       </dl>
     </section>
+    {% if bio.enrolled %}
+    <section class="app-card mb-3">
+      <div class="card-title-row"><h2>Covered-face (niqab) enrollment</h2>
+        {% if current_user.role == 'admin' and s.is_active %}
+          <a href="{{ url_for('enrollment.covered_capture', student_id=s.student_id) }}" class="btn btn-sm {{ 'btn-outline-primary' if covered_bio.enrolled else 'btn-primary' }}">{{ icon('camera', 16) }} {{ 'Re-enroll' if covered_bio.enrolled else 'Enroll covered face' }}</a>
+        {% endif %}
+      </div>
+      <dl class="detail-list">
+        <dt>Status</dt>
+        <dd>{% if covered_bio.enrolled %}<span class="pill pill-ok">Enrolled</span>{% else %}<span class="pill pill-muted">Not enrolled</span>{% endif %}</dd>
+        {% if covered_bio.enrolled %}
+        <dt>Samples</dt><dd>{{ covered_bio.samples }}</dd>
+        <dt>Enrolled</dt><dd>{{ covered_bio.enrolled_at|localtime }}</dd>
+        {% endif %}
+      </dl>
+      <p class="small text-muted px-3 pb-3 mb-0">For a student who wears a face covering. At the gate she types her registration number and her eyes are compared with these samples. Every such entry is flagged for warden review.</p>
+    </section>
+    {% endif %}
     <section class="app-card mb-3">
       <div class="card-title-row"><h2>Warden</h2></div>
       <dl class="detail-list">

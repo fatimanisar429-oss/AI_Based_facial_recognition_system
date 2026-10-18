@@ -133,6 +133,47 @@ def find_duplicate_face(db, key, encodings, threshold, exclude_student_id=None):
     return best
 
 
+# ---------- covered-face (niqab) templates ----------
+
+def save_covered_enrollment(db, key, student_id, encodings):
+    """Replace this student's covered-face templates, all or nothing. Their normal face enrollment is not touched."""
+    now = utc_now_text()
+    rows = [(student_id, n, encrypt_template(e, key), now) for n, e in enumerate(encodings, 1)]
+    try:
+        db.execute("DELETE FROM covered_profile WHERE student_id = ?", (student_id,))
+        db.executemany("INSERT INTO covered_profile (student_id, sample_no, template, created_at) VALUES (?, ?, ?, ?)", rows)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+
+def remove_covered_enrollment(db, student_id):
+    cur = db.execute("DELETE FROM covered_profile WHERE student_id = ?", (student_id,))
+    db.commit()
+    return cur.rowcount
+
+
+def covered_status(db, student_id):
+    """Counts only. Never returns template data."""
+    row = db.execute("SELECT COUNT(*) AS n, MAX(created_at) AS at FROM covered_profile WHERE student_id = ?", (student_id,)).fetchone()
+    return {"enrolled": row["n"] > 0, "samples": row["n"], "enrolled_at": row["at"]}
+
+
+def load_covered_templates(db, key, student_id):
+    """The covered-face templates of ONE active student (empty list if inactive or not enrolled)."""
+    rows = db.execute(
+        "SELECT c.template FROM covered_profile c JOIN student s ON s.student_id = c.student_id "
+        "WHERE c.student_id = ? AND s.is_active = 1 ORDER BY c.sample_no", (student_id,)).fetchall()
+    return [decrypt_template(r["template"], key) for r in rows]
+
+
+def find_student_by_registration(db, registration_no):
+    """The active student with this registration number (case-insensitive), or None."""
+    return db.execute("SELECT student_id, full_name FROM student WHERE registration_no = ? COLLATE NOCASE AND is_active = 1",
+                      (registration_no.strip(),)).fetchone()
+
+
 # ---------- enrollment list ----------
 
 ENROLLMENT_FILTERS = ("all", "enrolled", "not_enrolled")

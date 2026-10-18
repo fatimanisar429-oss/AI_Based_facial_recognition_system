@@ -24,6 +24,7 @@ POLICY = {
     "wardens.index": ADMIN, "wardens.detail": ADMIN, "wardens.create": ADMIN, "wardens.edit": ADMIN,
     "wardens.activate": ADMIN, "wardens.deactivate": ADMIN,
     "enrollment.index": ADMIN, "enrollment.capture": ADMIN, "enrollment.check": ADMIN, "enrollment.save": ADMIN, "enrollment.remove": ADMIN,
+    "enrollment.covered_capture": ADMIN, "enrollment.covered_check": ADMIN, "enrollment.covered_save": ADMIN, "enrollment.covered_remove": ADMIN,
     "attendance.index": STAFF, "attendance.mine": STUDENT,
     "logs.index": STAFF, "exits.index": STAFF, "exits.record": STAFF, "exits.record_guest": STAFF,
     "reports.index": STAFF,

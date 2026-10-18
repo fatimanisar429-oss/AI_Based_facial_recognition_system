@@ -51,6 +51,17 @@
         <div class="result-time" id="result-time"></div>
       </div>
 
+      <form class="app-card kiosk-card" id="id-form" hidden aria-label="Registration number for a covered face" autocomplete="off">
+        <h2>Face covered</h2>
+        <p class="mb-2">Enter your registration number. Then your eyes are checked against your own record only.</p>
+        <label for="id-input" class="form-label">Registration number</label>
+        <input type="text" class="form-control form-control-lg mb-2" id="id-input" maxlength="40" required autocapitalize="characters" spellcheck="false">
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary btn-lg flex-grow-1" id="id-submit">Verify</button>
+          <button type="button" class="btn btn-outline-secondary btn-lg" id="id-cancel">Cancel</button>
+        </div>
+      </form>
+
       <div class="app-card kiosk-checks">
         <h2>Checks</h2>
         <ul class="check-list">

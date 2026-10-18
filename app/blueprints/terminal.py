@@ -10,7 +10,7 @@ from flask import Blueprint, current_app, jsonify, render_template, request
 
 from ..db import get_db
 from ..security import local_only
-from ..services import biometrics, emailer, entries, guests, verification
+from ..services import biometrics, covered, emailer, entries, guests, verification
 from ..timeutil import format_local, to_text, utc_now, utc_now_text
 
 bp = Blueprint("terminal", __name__, url_prefix="/terminal")
@@ -49,12 +49,19 @@ def verify():
     started = time.perf_counter()
     try:
         key = cfg["BIOMETRIC_KEY"]
-        faces = biometrics.load_templates(db, key, "student", "face")
-        eyes = biometrics.load_templates(db, key, "student", "eye") if settings.eye_fallback else {}
-        guest_faces = biometrics.load_templates(db, key, "guest", "face")        # only guests with an approved visit
-        extra = {"guest_faces": guest_faces} if guest_faces else {}
-        decision = verification.verify(frames, faces, eyes, settings, **extra)
-        decision = guests.resolve(db, decision, to_text(utc_now()))              # visit rules for a recognised guest
+        claimed = request.form.get("registration_no", "").strip()[:40]
+        if claimed:
+            # Covered face: the student typed their registration number, so only THEIR covered-face templates are compared (1:1).
+            student = biometrics.find_student_by_registration(db, claimed)
+            templates = biometrics.load_covered_templates(db, key, student["student_id"]) if student else []
+            decision = covered.verify_covered(frames, student["student_id"] if student else None, templates, settings, claimed=claimed)
+        else:
+            faces = biometrics.load_templates(db, key, "student", "face")
+            eyes = biometrics.load_templates(db, key, "student", "eye") if settings.eye_fallback else {}
+            guest_faces = biometrics.load_templates(db, key, "guest", "face")        # only guests with an approved visit
+            extra = {"guest_faces": guest_faces} if guest_faces else {}
+            decision = verification.verify(frames, faces, eyes, settings, **extra)
+            decision = guests.resolve(db, decision, to_text(utc_now()))              # visit rules for a recognised guest
     except Exception:
         current_app.logger.exception("Entry verification failed")
         decision = verification.deny("processing_error")

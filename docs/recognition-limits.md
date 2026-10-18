@@ -93,10 +93,36 @@ sharpness, which is **easier** than real life):
 With a gallery of N students the chance that a stranger matches somebody grows with N. So **a covered face cannot be identified
 safely with this stack**, and no threshold fixes it: the two groups of distances overlap.
 
-Decision: a covered face is **never recognised and never granted**. The terminal (YuNet is used only to notice a covered head)
-says *"Your face is covered ... ask the warden to verify you in person"*, the attempt is logged as `face_covered`, flagged for
-review, not attributed to any student, and **not** counted towards security alerts. The warden verifies in person.
-Real iris recognition needs a near-infrared iris camera; a webcam cannot do it. These numbers should go in the report as a finding.
+Decision (October 2026, revised): a covered face is **never searched against the whole gallery**. The terminal (YuNet notices the
+covered head) asks for the **registration number** and then compares the eyes with **that one student's covered-face templates only**
+(1:1, `app/services/covered.py`). That removes the "stranger matches somebody in a gallery of N" effect; what is left is the chance
+that someone who knows or guesses the number has eyes close enough to that student's.
+
+| Step | How |
+|---|---|
+| Enrollment (admin, after the normal enrollment) | 5 samples with the covering ON; stored as encrypted encodings in `covered_profile` |
+| Gate | Covered head seen, so the page asks for the registration number and sends the **same** pictures again with it (no second blink needed) |
+| Downgrade guard | If dlib finds a normal face in the pictures, the covered path refuses (`face_visible`): the strong full-face check must be used |
+| Liveness | Short change in the eye band that returns to normal (see below) |
+| Match | Smallest distance to that student's covered templates under `COVERED_THRESHOLD` (0.40, stricter than 0.5) |
+| Result | Granted entries are **always flagged for warden review** (method "Eye-Region"). A denial is logged with the typed number but never linked to a student, and counts towards security alerts |
+| Unknown number / inactive / not enrolled | All look the same at the terminal ("ask the warden") |
+
+What we measured while building it (simulated niqab, one public portrait; **not** an accuracy figure):
+
+* dlib's landmarks on a covered face are unusable for the blink: a painted-shut eye still read as open (EAR 0.41 against 0.43), and
+  the encoding of the same picture moved by **0.42** when it was merely re-saved at another JPEG quality. So the face is aligned by
+  hand from YuNet's eye positions and given straight to the recognition network (`covered_encoding`): the same JPEG change now
+  moves it by about 0.06, a lighting change by 0.07 to 0.17, a 15 % smaller picture by 0.34.
+* The blink on a covered face is found by comparing the eye band with the burst's median band (a blink is a short run of clearly
+  different frames with unchanged frames before and after). A still picture never changes; a head that moves and does not come back
+  is too long to count.
+
+**Not measured, and must be before this is trusted:** how often a different real person with a similar eye area passes (the 91-photo
+test above gave about 10 % per 1:1 comparison at a threshold of 0.45 with 14 % of real people refused), how real niqab cloth and
+real blinks behave, and whether `COVERED_BLINK_MIN_CHANGE` (7 grey levels) and `COVERED_THRESHOLD` (0.40) suit the gate camera. Until
+then this is a convenience with warden review, not an identity guarantee. Real iris recognition needs a near-infrared iris camera;
+a webcam cannot do it.
 
 Conclusion: eye-region comparison with the specified stack is **not reliable enough to identify a person**, and the
 "covered face" case could not be made to work. Therefore:
@@ -116,6 +142,9 @@ Conclusion: eye-region comparison with the specified stack is **not reliable eno
 | No blink | Denied | Denied, no student, `liveness_failed` |
 | Face not in the enrolled set | Denied | Denied, no student, `not_recognized` |
 | Two students match equally | Denied | Denied, no student, `ambiguous` |
+| Face covered (first pass) | Terminal asks for the registration number | Denied, `face_covered` (not flagged, not counted) |
+| Covered, number typed, eyes match that student, blink seen | Access granted, **flagged for warden review** | Granted, student, method Eye-Region |
+| Covered, eyes do not match / unknown number / not enrolled covered | Denied, "ask the warden" | Denied, no student, the typed number in the reason |
 | No face / several faces / too dark / blurry / too far | Denied | Denied, no student, matching code |
 | Camera missing, blocked or busy | Message on the terminal | Not logged (no attempt reached the server) |
 

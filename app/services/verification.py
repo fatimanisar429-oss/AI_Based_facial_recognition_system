@@ -33,7 +33,10 @@ MESSAGES = {
     "not_recognized": "Face not recognised.",
     "ambiguous": "Verification was inconclusive. Please contact the warden.",
     "no_face": "No face detected. Face the camera straight on, in good light.",
-    "face_covered": "Your face is covered, so it cannot be verified automatically. Please ask the warden to verify you in person.",
+    "face_covered": "Your face is covered. Enter your registration number to verify with your eyes.",
+    "face_visible": "Your face is visible, so no registration number is needed. Verify again without entering it.",
+    "covered_not_matched": "Could not verify you. Please ask the warden to verify you in person.",
+    "covered_not_enrolled": "Could not verify you. Please ask the warden to verify you in person.",
     "multiple_faces": "More than one face is visible. Only one person may be in front of the camera.",
     "bad_frames": "The camera pictures could not be used. Please try again.",
     "no_enrolled": "No students are enrolled yet.",
@@ -69,6 +72,8 @@ class Settings:
     blink_closed_max_ear: float = 0.27
     blink_max_closed: int = 8
     ear_min_baseline: float = 0.18
+    covered_threshold: float = 0.40
+    covered_blink_min_change: float = 7.0
     limits: R.Limits = field(default_factory=R.Limits)
 
     @classmethod
@@ -80,7 +85,8 @@ class Settings:
             face_frame_ratio=cfg["FACE_FRAME_RATIO"], multi_face_ratio=cfg["MULTI_FACE_RATIO"],
             blink_drop=cfg["BLINK_DROP_RATIO"], blink_open=cfg["BLINK_OPEN_RATIO"],
             blink_closed_max_ear=cfg["BLINK_CLOSED_MAX_EAR"], blink_max_closed=cfg["BLINK_MAX_CLOSED_FRAMES"],
-            ear_min_baseline=cfg["EAR_MIN_BASELINE"], limits=_verify_limits(cfg))
+            ear_min_baseline=cfg["EAR_MIN_BASELINE"], covered_threshold=cfg["COVERED_THRESHOLD"],
+            covered_blink_min_change=cfg["COVERED_BLINK_MIN_CHANGE"], limits=_verify_limits(cfg))
 
 
 @dataclass
@@ -99,6 +105,7 @@ class Decision:
     subject_type: str = None                   # "guest" or None
     guest_id: int = None
     visit_request_id: int = None
+    claimed: str = None                        # covered-face path only: the registration number typed at the gate (for the log)
 
 
 def deny(code, message=None, **kw):
@@ -179,7 +186,8 @@ def looks_covered(frames, s, min_share=0.4):
     """True when the frames show a face-like head that dlib could not use (a niqab, a scarf, a mask: the eyes are visible).
 
     dlib's detector found a face in 0 of 91 covered test pictures; YuNet found one in 71 of 91. It only decides which MESSAGE
-    the person sees. Nothing is ever recognised or granted from a covered face: matching just the eye area let about 17 in 100
+    the person sees: the terminal then asks for the registration number and the covered-face 1:1 check (services/covered.py)
+    takes over. A covered face is never searched against the whole gallery: matching just the eye area let about 17 in 100
     strangers through at a point where 8 in 100 real people were refused (docs/recognition-limits.md, section 3b)."""
     try:
         detector = _yunet_detector()
@@ -352,8 +360,8 @@ def _verify(frame_bytes, gallery_faces, gallery_eyes, s, guest_faces):
     single = sum(1 for c in counts if c == 1)
     if single / total < s.face_frame_ratio:
         if looks_covered(frames, s):
-            # A covered face is never identified (too unreliable, see looks_covered). It is flagged so the warden sees it.
-            return deny("face_covered", needs_review=True,
+            # Not identified here (too unreliable, see looks_covered): the terminal asks for the registration number next.
+            return deny("face_covered",
                         checks={"face": "failed", "liveness": "skipped", "recognition": "skipped"})
         return deny("no_face", checks={"face": "failed", "liveness": "skipped", "recognition": "skipped"})
 

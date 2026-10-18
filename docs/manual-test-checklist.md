@@ -81,3 +81,14 @@ Use Edge or Chrome at `http://127.0.0.1:5000`.
 ## 11. Secrets
 - [ ] `git status` does not list `.env`, `instance/` or any `.db` file
 - [ ] `.env.example` contains no real passwords or keys
+
+## Covered face (niqab), 1:1 with registration number
+- [ ] Student detail (enrolled student): the "Covered-face (niqab) enrollment" card appears; "Enroll covered face" opens the capture page
+- [ ] With the covering on, 5 samples are accepted; a visible face is refused with "face is visible"
+- [ ] Gate, covered: the page shows "Face covered" and asks for the registration number (the camera stays off, no second blink)
+- [ ] Right number + the same student blinking -> Access granted, attendance marked, the log row says Eye-Region and is flagged for review
+- [ ] Right number, a different person -> denied "ask the warden"; the log shows the typed number but no student
+- [ ] Unknown number, inactive student, or a student without covered enrollment -> the same "ask the warden" message
+- [ ] A still photo of the covered student (no blink) -> denied (liveness)
+- [ ] Face visible but a number is sent -> refused (the normal check must be used)
+- [ ] Cancel on the number form returns to the idle screen; the form clears itself after about a minute

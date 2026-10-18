@@ -60,6 +60,17 @@ CREATE TABLE IF NOT EXISTS biometric_profile (
     UNIQUE (owner_type, owner_id, kind, sample_no)
 );
 
+-- Templates of a student wearing a face covering (niqab): face encodings taken from the eye-slit picture. Used ONLY for the
+-- 1:1 check at the gate (the student first types their registration number), never for searching the whole gallery.
+CREATE TABLE IF NOT EXISTS covered_profile (
+    profile_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id INTEGER NOT NULL REFERENCES student(student_id) ON DELETE CASCADE,
+    sample_no  INTEGER NOT NULL,
+    template   BLOB NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE (student_id, sample_no)
+);
+
 CREATE TABLE IF NOT EXISTS guest_visit_request (
     request_id          INTEGER PRIMARY KEY AUTOINCREMENT,
     student_id          INTEGER NOT NULL REFERENCES student(student_id),

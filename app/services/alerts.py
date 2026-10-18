@@ -19,7 +19,7 @@ STATUSES = ("New", "Acknowledged")
 #  * NOT counted: covered face (a niqab: the warden verifies in person) / no face / too dark / blurry / too far / unusable frames (technical, nobody was examined), nobody
 #    enrolled, processing errors, and refusals of a recognised guest for visit rules (expired, used...).
 #  * A success in between does not reset the count; the window is a plain "last N minutes".
-COUNTED_CODES = ("liveness_failed", "not_recognized", "ambiguous")
+COUNTED_CODES = ("liveness_failed", "not_recognized", "ambiguous", "covered_not_matched", "covered_not_enrolled")
 
 
 # ---------- recipients ----------

@@ -85,6 +85,13 @@ class Config:
     EYE_MARGIN = float(os.environ.get("EYE_MARGIN", "0.05"))
     FACE_FALLBACK_MAX = float(os.environ.get("FACE_FALLBACK_MAX", "0.6"))   # face must at least be this close
 
+    # Covered face (niqab). The student types their registration number and only THEIR covered-face template is compared (1:1).
+    # Eye-slit matching is much weaker than full-face matching (docs/recognition-limits.md, 3b): the threshold is stricter than
+    # FACE_THRESHOLD, the blink is found from the change in the eye band (landmarks are unreliable here) and every such entry is flagged for warden review.
+    COVERED_THRESHOLD = float(os.environ.get("COVERED_THRESHOLD", "0.40"))
+    COVERED_CONSISTENCY_MAX = float(os.environ.get("COVERED_CONSISTENCY_MAX", "0.6"))   # covered enrollment samples must be one person
+    COVERED_BLINK_MIN_CHANGE = float(os.environ.get("COVERED_BLINK_MIN_CHANGE", "7"))   # grey levels; see services/covered.py
+
     # Enrollment: how many samples, and how strict the image checks are.
     ENROLLMENT_SAMPLES = 5
     MAX_CONTENT_LENGTH = 12 * 1024 * 1024        # largest request body Flask accepts

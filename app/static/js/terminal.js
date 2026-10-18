@@ -7,6 +7,10 @@
 //   4. The pictures are sent to the server. THE SERVER decides and writes the entry log; this page only shows
 //      the answer, so a tampered page cannot grant access.
 //   5. After a few seconds the screen resets for the next person.
+//
+// Covered face (niqab): if the server answers "face_covered", the page asks for the registration number and sends the SAME
+// pictures again with that number (the server then compares the eyes with that one student only). The pictures stay in this
+// page's memory only until the answer arrives or the screen resets; nothing is stored.
 (function () {
   "use strict";
 
@@ -28,10 +32,11 @@
     overlayText: $("overlay-text"), bar: $("capture-bar"), start: $("btn-start"), card: $("result-card"),
     title: $("result-title"), name: $("result-name"), detail: $("result-detail"), time: $("result-time"),
     chipCamera: $("chip-camera"), chipFace: $("chip-face"), chipLive: $("chip-liveness"),
-    chipRecog: $("chip-recognition"), chipMethod: $("chip-method")
+    chipRecog: $("chip-recognition"), chipMethod: $("chip-method"),
+    idPanel: $("id-form"), idForm: $("id-form"), idInput: $("id-input"), idCancel: $("id-cancel"), idSubmit: $("id-submit")
   };
 
-  var stream = null, busy = false, resetTimer = null;
+  var stream = null, busy = false, resetTimer = null, pendingFrames = null, lastFrames = null;
 
   // ---------- clock ----------
   function tick() {
@@ -56,8 +61,15 @@
     el.time.textContent = time || "";
   }
 
+  function hideIdPanel() {
+    pendingFrames = null;                          // the pictures are forgotten as soon as they are not needed
+    el.idPanel.hidden = true;
+    el.idInput.value = "";
+  }
+
   function resetScreen() {
     clearTimeout(resetTimer);
+    hideIdPanel();
     showResult("idle", "Ready", "", "Waiting for the next person.", "");
     chip(el.chipCamera, "Off", "muted");
     chip(el.chipFace, "Waiting", "muted");
@@ -177,6 +189,61 @@
     showResult("denied", "ACCESS DENIED", "", message, "");
   }
 
+  function send(frames, registrationNo) {
+    var form = new FormData();
+    frames.forEach(function (blob, i) { form.append("frames", blob, "frame-" + i + ".jpg"); });
+    if (registrationNo) form.append("registration_no", registrationNo);
+    return fetch(cfg.url, { method: "POST", headers: { "X-CSRF-Token": cfg.csrf }, body: form, credentials: "same-origin" });
+  }
+
+  function readAnswer(res) {
+    return res.json().then(function (data) { return { status: res.status, data: data }; },
+      function () { return { status: res.status, data: null }; });
+  }
+
+  function handleOutcome(out, frames) {
+    if (out.data && out.data.ok && out.data.code === "face_covered") { askForId(frames, out.data); return; }
+    hideIdPanel();
+    if (out.data && out.data.ok) { showAnswer(out.data); return; }
+    if (out.data && out.data.message) { showFailure(out.data.message); return; }
+    showFailure(out.status === 403
+      ? "This terminal can only be used on the gate computer."
+      : "The server gave an unexpected answer. Please try again.");
+  }
+
+  // ---------- covered face: ask for the registration number ----------
+  function askForId(frames, data) {
+    pendingFrames = frames;
+    showAnswer(data);
+    showResult("working", "FACE COVERED", "", data.message, data.time);
+    el.idPanel.hidden = false;
+    el.idInput.focus();
+    clearTimeout(resetTimer);
+    resetTimer = setTimeout(resetScreen, 60000);          // give the person a minute to type
+  }
+
+  function submitId(event) {
+    event.preventDefault();
+    var regNo = el.idInput.value.trim();
+    if (!regNo || !pendingFrames || busy) return;
+    var frames = pendingFrames;
+    busy = true;
+    el.idSubmit.disabled = true;
+    clearTimeout(resetTimer);
+    showResult("working", "Checking...", "", "Please wait.", "");
+    chip(el.chipRecog, "Checking", "warn");
+    send(frames, regNo)
+      .then(readAnswer)
+      .then(function (out) { el.idPanel.hidden = true; handleOutcome(out, frames); })
+      .catch(function () { hideIdPanel(); showFailure("Verification could not be completed. Check the connection, then try again."); })
+      .then(function () {
+        busy = false;
+        el.idSubmit.disabled = false;
+        el.start.disabled = cfg.disabled;
+        resetTimer = setTimeout(resetScreen, RESET_MS);
+      });
+  }
+
   // ---------- one verification ----------
   function run() {
     if (busy || cfg.disabled) return;
@@ -199,27 +266,17 @@
       })
       .then(captureBurst)
       .then(function (frames) {
+        lastFrames = frames;
         closeCamera();                                   // the camera is no longer needed
         el.overlay.hidden = true;
         showResult("working", "Checking...", "", "Please wait.", "");
         chip(el.chipFace, "Checking", "warn");
         chip(el.chipLive, "Checking", "warn");
         chip(el.chipRecog, "Checking", "warn");
-        var form = new FormData();
-        frames.forEach(function (blob, i) { form.append("frames", blob, "frame-" + i + ".jpg"); });
-        return fetch(cfg.url, { method: "POST", headers: { "X-CSRF-Token": cfg.csrf }, body: form, credentials: "same-origin" });
+        return send(frames, "");
       })
-      .then(function (res) {
-        return res.json().then(function (data) { return { status: res.status, data: data }; },
-          function () { return { status: res.status, data: null }; });
-      })
-      .then(function (out) {
-        if (out.data && out.data.ok) { showAnswer(out.data); return; }
-        if (out.data && out.data.message) { showFailure(out.data.message); return; }
-        showFailure(out.status === 403
-          ? "This terminal can only be used on the gate computer."
-          : "The server gave an unexpected answer. Please try again.");
-      })
+      .then(readAnswer)
+      .then(function (out) { handleOutcome(out, lastFrames); })
       .catch(function (err) {
         closeCamera();
         el.overlay.hidden = true;
@@ -230,12 +287,15 @@
       })
       .then(function () {
         busy = false;
+        lastFrames = null;
         el.start.disabled = cfg.disabled;
-        resetTimer = setTimeout(resetScreen, RESET_MS);
+        if (!pendingFrames) resetTimer = setTimeout(resetScreen, RESET_MS);
       });
   }
 
   el.start.addEventListener("click", run);
+  el.idForm.addEventListener("submit", submitId);
+  el.idCancel.addEventListener("click", resetScreen);
   window.addEventListener("pagehide", closeCamera);       // never leave the camera on
   resetScreen();
   if (cfg.disabled) showResult("denied", "Unavailable", "", "The terminal is not configured. Contact the administrator.", "");

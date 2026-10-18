@@ -15,7 +15,10 @@ FAILURE_LABELS = {
     "not_recognized": "Face not recognised",
     "ambiguous": "Inconclusive: two students matched closely",
     "no_face": "No face detected",
-    "face_covered": "Face covered (eyes only): needs the warden to verify in person",
+    "face_covered": "Face covered: the terminal asked for a registration number",
+    "face_visible": "Registration number entered, but the face is visible (normal check required)",
+    "covered_not_matched": "Covered face: eyes did not match the claimed student",
+    "covered_not_enrolled": "Covered face: unknown ID, inactive student or no covered enrollment",
     "multiple_faces": "More than one face in view",
     "face_too_small": "Face too far from the camera",
     "too_dark": "Image too dark",
@@ -56,6 +59,8 @@ def record_attempt(db, decision, cfg):
             decision.__dict__.update(lost.__dict__)
         granted = decision.granted
         reason = None if granted else FAILURE_LABELS.get(decision.code, decision.message)
+        if reason and decision.claimed:
+            reason += f" (ID typed: {decision.claimed})"      # what was typed, not who it was: a denial is still never linked to a student
         cur = db.execute(
             "INSERT INTO entry_log (subject_type, student_id, guest_id, visit_request_id, attempted_at, method, result, score, "
             "failure_reason, door_status, needs_review, failure_code, liveness) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",

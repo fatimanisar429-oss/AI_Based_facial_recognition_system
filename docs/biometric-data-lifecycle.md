@@ -12,6 +12,8 @@ deleted. It describes the system as built so far (enrollment, Phase 6). Verifica
 | Eye-region template | Yes | 80 numbers (Local Binary Pattern histograms of the skin around both eyes), one row per sample. This is **not** iris recognition. |
 | Quality numbers (brightness, sharpness) | No | Shown to the admin during capture only. |
 
+| Covered-face template | Yes | 128 numbers from the eye-slit picture of a student wearing a face covering, one row per sample (5), table `covered_profile`. Used only for the 1:1 gate check after the student types their registration number. |
+
 Table: `biometric_profile` (`owner_type`, `owner_id`, `kind` = `face`/`eye`, `sample_no`, `template`, `created_at`).
 
 ## How templates are protected

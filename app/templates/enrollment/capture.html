@@ -6,13 +6,19 @@
 <div class="page-header d-flex flex-wrap justify-content-between align-items-start gap-2">
   <div class="d-flex align-items-center gap-3">
     <span class="avatar avatar-lg">{{ subject.name|initials }}</span>
-    <div><h1>Face enrollment{% if subject.kind == 'guest' %} (guest){% endif %}</h1><p>{{ subject.name }} &middot; {{ subject.sub }}</p></div>
+    <div><h1>{{ subject.title or 'Face enrollment' }}{% if subject.kind == 'guest' %} (guest){% endif %}</h1><p>{{ subject.name }} &middot; {{ subject.sub }}</p></div>
   </div>
   <a href="{{ subject.back_url }}" class="btn btn-outline-secondary btn-sm">{{ subject.back_label }}</a>
 </div>
 
 {% if key_problem %}
   <div class="alert alert-danger" role="alert"><strong>Enrollment is switched off.</strong> {{ key_problem }}</div>
+{% endif %}
+
+{% if subject.covered %}
+  <div class="alert alert-warning" role="note">The student must wear her face covering (niqab) for every sample, exactly as at the gate.
+    Only the eye area needs to be visible. At the gate she types her registration number and her eyes are compared with these samples.
+    She does <strong>not</strong> need to uncover her face.</div>
 {% endif %}
 
 {% if subject.enrolled %}
@@ -73,8 +79,8 @@
         <div class="card-title-row"><h2 id="samples-h">Samples (<span id="sample-count">0</span> of {{ samples }})</h2></div>
         <div class="card-body-pad">
           <ol class="sample-grid" id="sample-grid">
-            {% for prompt in ["Look straight at the camera", "Turn slightly to the left", "Turn slightly to the right",
-                              "Tilt the chin slightly up", "Look straight, relaxed"][:samples] %}
+            {% for prompt in (subject.prompts or ["Look straight at the camera", "Turn slightly to the left", "Turn slightly to the right",
+                              "Tilt the chin slightly up", "Look straight, relaxed"])[:samples] %}
             <li class="sample-slot" data-index="{{ loop.index0 }}">
               <button type="button" class="slot-button" aria-label="Sample {{ loop.index }}: {{ prompt }}">
                 <span class="slot-empty">{{ loop.index }}</span>

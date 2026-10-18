@@ -1,4 +1,4 @@
-"""A covered face (niqab: only the eyes show) is never identified; the person is told to ask the warden."""
+"""A covered face (niqab: only the eyes show) is never searched against the gallery; the terminal asks for a registration number (1:1 check, see test_covered_1to1.py)."""
 import numpy as np
 import pytest
 
@@ -41,10 +41,10 @@ def test_dlib_alone_cannot_see_a_covered_face(veiled):
     assert face_recognition.face_locations(veiled) == []
 
 
-def test_a_covered_face_gets_the_warden_message_and_is_flagged(veiled):
+def test_a_covered_face_is_asked_for_a_registration_number_and_never_identified(veiled):
     d = attempt(veiled)
-    assert not d.granted and d.code == "face_covered" and d.needs_review
-    assert d.student_id is None and d.method == "None" and "warden" in d.message
+    assert not d.granted and d.code == "face_covered"
+    assert d.student_id is None and d.method == "None" and "registration number" in d.message
     assert d.checks["face"] == "failed"
 
 
@@ -62,5 +62,5 @@ def test_covered_attempts_do_not_raise_security_alerts():
     assert "face_covered" not in alerts.COUNTED_CODES
 
 
-def test_the_log_label_tells_the_warden_what_to_do():
-    assert "warden" in entries.FAILURE_LABELS["face_covered"]
+def test_the_log_label_says_the_terminal_asked_for_a_number():
+    assert "registration number" in entries.FAILURE_LABELS["face_covered"]

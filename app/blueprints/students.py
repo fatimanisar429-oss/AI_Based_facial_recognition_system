@@ -71,7 +71,8 @@ def create():
 @role_required("admin", "warden")
 def detail(student_id):
     return render_template("students/detail.html", s=_get_student(student_id), title="Student details",
-                           bio=biometrics.enrollment_status(get_db(), "student", student_id))
+                           bio=biometrics.enrollment_status(get_db(), "student", student_id),
+                           covered_bio=biometrics.covered_status(get_db(), student_id))
 
 
 @bp.route("/<int:student_id>/edit", methods=["GET", "POST"])

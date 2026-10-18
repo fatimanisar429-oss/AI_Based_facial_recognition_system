@@ -10,7 +10,7 @@ from flask import (Blueprint, abort, current_app, flash, g, jsonify, redirect, r
 
 from ..db import get_db
 from ..security import role_required
-from ..services import biometrics, recognition
+from ..services import biometrics, covered, recognition
 
 bp = Blueprint("enrollment", __name__, url_prefix="/enrollment")
 
@@ -30,13 +30,13 @@ def key_problem():
     return biometrics.key_problem(current_app.config["BIOMETRIC_KEY"])
 
 
-def check_one_image():
-    """JSON verdict for the single picture in request.files['image']. Stores nothing."""
+def check_one_image(checker=None):
+    """JSON verdict for the single picture in request.files['image']. Stores nothing. `checker` defaults to the normal face check."""
     image = request.files.get("image")
     if image is None:
         return fail(400, "no_image", "No image was received.")
     try:
-        metrics = recognition.quick_check(image.read(), limits())
+        metrics = (checker or recognition.quick_check)(image.read(), limits())
     except recognition.ImageError as err:
         return fail(422, err.code, err.message)
     except Exception:
@@ -181,5 +181,103 @@ def remove(student_id):
     removed = biometrics.remove_enrollment(get_db(), "student", student_id)
     current_app.logger.info("Enrollment removed: student_id=%s by admin_id=%s rows=%s", student_id, g.user["id"], removed)
     flash(f"Face enrollment removed for {student['full_name']}." if removed else "There was no enrollment to remove.",
+          "success" if removed else "info")
+    return redirect(url_for("students.detail", student_id=student_id))
+
+
+# ---------- covered face (niqab) pages ----------
+# A second, separate enrollment for a student who wears a face covering: 5 pictures with the covering ON, kept as encodings
+# of the eye slit. The gate uses them only after the student types their registration number (services/covered.py).
+
+COVERED_PROMPTS = ["Look straight at the camera", "Turn slightly to the left", "Turn slightly to the right",
+                   "Tilt the chin slightly up", "Look straight, relaxed"]
+
+
+def subject_for_covered(student, status):
+    sid = student["student_id"]
+    return {
+        "kind": "student", "name": student["full_name"], "sub": student["registration_no"], "covered": True,
+        "title": "Covered-face enrollment", "prompts": COVERED_PROMPTS,
+        "check_url": url_for("enrollment.covered_check", student_id=sid), "save_url": url_for("enrollment.covered_save", student_id=sid),
+        "remove_url": url_for("enrollment.covered_remove", student_id=sid),
+        "back_url": url_for("students.detail", student_id=sid), "back_label": "Back to student",
+        "remove_note": "They will have to ask the warden when their face is covered, until enrolled again.",
+        "enrolled": status["enrolled"], "face_samples": status["samples"], "enrolled_at": status["enrolled_at"],
+    }
+
+
+@bp.get("/student/<int:student_id>/covered")
+@role_required("admin")
+def covered_capture(student_id):
+    student = _get_student(student_id)
+    if not student["is_active"]:
+        flash("This account is deactivated. Reactivate it before enrolling.", "warning")
+        return redirect(url_for("students.detail", student_id=student_id))
+    db = get_db()
+    if not biometrics.enrollment_status(db, "student", student_id)["enrolled"]:
+        flash("Enroll the normal (uncovered) face first, then add the covered-face enrollment.", "warning")
+        return redirect(url_for("students.detail", student_id=student_id))
+    return render_template("enrollment/capture.html", title="Enroll covered face",
+                           subject=subject_for_covered(student, biometrics.covered_status(db, student_id)),
+                           samples=current_app.config["ENROLLMENT_SAMPLES"], key_problem=key_problem())
+
+
+@bp.post("/student/<int:student_id>/covered/check")
+@role_required("admin")
+def covered_check(student_id):
+    _get_student(student_id)
+    return check_one_image(covered.quick_check)
+
+
+@bp.post("/student/<int:student_id>/covered/save")
+@role_required("admin")
+def covered_save(student_id):
+    student = _get_student(student_id)
+    if not student["is_active"]:
+        return fail(409, "inactive", "This account is deactivated.")
+    problem = key_problem()
+    if problem:
+        return fail(503, "no_key", problem)
+    db = get_db()
+    cfg = current_app.config
+    if not biometrics.enrollment_status(db, "student", student_id)["enrolled"]:
+        return fail(409, "not_enrolled", "Enroll the normal face first.")
+    if biometrics.covered_status(db, student_id)["enrolled"] and request.form.get("replace") != "1":
+        return fail(409, "already_enrolled", "This student already has a covered-face enrollment. Confirm to replace it.")
+    if request.form.get("consent") != "1":
+        return fail(400, "no_consent", "Confirm that the student agreed to biometric enrollment.")
+    images = request.files.getlist("images")
+    if len(images) != cfg["ENROLLMENT_SAMPLES"]:
+        return fail(400, "wrong_count", f"Exactly {cfg['ENROLLMENT_SAMPLES']} samples are required.")
+    encodings = []
+    for number, image in enumerate(images, 1):
+        try:
+            encoding, _ = covered.analyze_covered_image(image.read(), limits())
+        except recognition.ImageError as err:
+            return fail(422, err.code, f"Sample {number}: {err.message}", sample=number)
+        except Exception:
+            current_app.logger.exception("Covered enrollment analysis failed")
+            return fail(500, "processing_error", "The samples could not be processed. Please try again.")
+        encodings.append(encoding)
+    if recognition.max_pairwise_distance(encodings) > cfg["COVERED_CONSISTENCY_MAX"]:
+        return fail(422, "inconsistent", "The samples do not look like the same person. "
+                    "Make sure only the student is in front of the camera and capture all samples again.")
+    try:
+        biometrics.save_covered_enrollment(db, cfg["BIOMETRIC_KEY"], student_id, encodings)
+    except Exception:
+        current_app.logger.exception("Saving covered enrollment failed")
+        return fail(500, "save_failed", "The enrollment could not be saved. Nothing was changed.")
+    current_app.logger.info("Covered enrollment saved: student_id=%s by admin_id=%s samples=%s", student_id, g.user["id"], len(encodings))
+    flash(f"Covered-face enrollment saved for {student['full_name']} ({len(encodings)} samples).", "success")
+    return jsonify(ok=True, message="Enrollment saved.", redirect=url_for("students.detail", student_id=student_id))
+
+
+@bp.post("/student/<int:student_id>/covered/remove")
+@role_required("admin")
+def covered_remove(student_id):
+    student = _get_student(student_id)
+    removed = biometrics.remove_covered_enrollment(get_db(), student_id)
+    current_app.logger.info("Covered enrollment removed: student_id=%s by admin_id=%s rows=%s", student_id, g.user["id"], removed)
+    flash(f"Covered-face enrollment removed for {student['full_name']}." if removed else "There was no covered-face enrollment to remove.",
           "success" if removed else "info")
     return redirect(url_for("students.detail", student_id=student_id))
