@@ -24,8 +24,9 @@ Encoding distances measured on 7 public photos of 4 people (one person has 4 dif
 | Same person, different photos | 0.05 to 0.37 |
 | Different people (15 pairs) | 0.71 to 0.90 (median 0.81) |
 
-The default threshold is **0.55** (`FACE_THRESHOLD`; the SRS value was 0.5, the library default is 0.6). It was raised
-from 0.5 after the gate log showed real students being rejected; it still lies in the gap with room on both sides. Caveats: only 4 people; photos are not webcam frames; twins and look-alikes will be closer.
+The default threshold is **0.5** (`FACE_THRESHOLD`, from the SRS; the library default is 0.6). We tried 0.55 and went back: on
+our own webcam two different enrolled students were only 0.57 apart, so 0.55 left almost no margin (and wrongly flagged a new
+student as a duplicate). The enrollment duplicate check has its own, stricter `DUPLICATE_FACE_THRESHOLD` (0.4). Caveats: only 4 people; photos are not webcam frames; twins and look-alikes will be closer.
 
 Safety rules on top of the threshold:
 
@@ -43,7 +44,7 @@ The gate log of the first real-webcam session showed that almost every rejection
 |---|---|
 | The gate's sharpness limit is 12 (`VERIFY_SHARPNESS_MIN`); enrollment stays at 30 | A soft picture only makes the face distance larger. The face distance still decides. |
 | The 3 sharpest open-eyed frames are matched, and the smallest distance counts | Frames of one live person; a stranger is 0.71+ away in every frame. The two-students-equal "ambiguous" rule is unchanged. |
-| Threshold 0.5 -> 0.55 | Same person measured up to 0.37, different people from 0.71. |
+| Threshold stays 0.5 | Same person up to 0.37 and different people from 0.71 on public photos, but only 0.57 apart for two students on our webcam: keep the margin. |
 | Blink: `BLINK_DROP_RATIO` 0.82, `BLINK_OPEN_RATIO` 0.88, `BLINK_CLOSED_MAX_EAR` 0.27 | Liveness is not identity; a gentler dip is accepted, a still photo (no dip) is still refused. |
 
 Everything above is a setting in `.env` and can be tightened again. Re-measure on the real gate camera before claiming accuracy.
@@ -86,7 +87,7 @@ sharpness, which is **easier** than real life):
 | dlib finds the face | 91 of 91 | **0 of 91** (YuNet finds 71 of 91) |
 | Same person, mean distance | 0.06 | 0.29 (worst 0.65) |
 | Different people, median / closest | 0.82 / 0.31 | 0.61 / 0.10 |
-| At threshold 0.55: real people refused / strangers accepted (per comparison) | 0 % / 0.3 % | 3.9 % / **30 %** |
+| At threshold 0.55 (not used): real people refused / strangers accepted (per comparison) | 0 % / 0.3 % | 3.9 % / **30 %** |
 | At threshold 0.45 | 0 % / 0.03 % | 14.5 % / **9.7 %** |
 
 With a gallery of N students the chance that a stranger matches somebody grows with N. So **a covered face cannot be identified

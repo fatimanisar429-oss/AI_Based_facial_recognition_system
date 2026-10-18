@@ -53,7 +53,7 @@ def _verify_limits(cfg):
 
 @dataclass(frozen=True)
 class Settings:
-    face_threshold: float = 0.55
+    face_threshold: float = 0.5
     face_margin: float = 0.04
     eye_fallback: bool = False
     eye_threshold: float = 0.06

@@ -148,7 +148,7 @@ def save(student_id):
     if error:
         return error
 
-    duplicate = biometrics.find_duplicate_face(db, key, encodings, current_app.config["FACE_THRESHOLD"],
+    duplicate = biometrics.find_duplicate_face(db, key, encodings, current_app.config["DUPLICATE_FACE_THRESHOLD"],
                                                exclude_student_id=student_id)
     if duplicate:
         other = db.execute("SELECT full_name, registration_no FROM student WHERE student_id = ?",
@@ -157,7 +157,7 @@ def save(student_id):
                     f"({other['registration_no']}). One person can have only one student account.")
     # A guest with an approved visit must not be able to become a student by enrolling the same face.
     if biometrics.find_duplicate_in(biometrics.load_templates(db, key, "guest", "face"), encodings,
-                                    current_app.config["FACE_THRESHOLD"]):
+                                    current_app.config["DUPLICATE_FACE_THRESHOLD"]):
         return fail(409, "duplicate_face", "This face is already registered for a guest visit. Remove the guest's "
                     "face data first if this person is now a student.")
 

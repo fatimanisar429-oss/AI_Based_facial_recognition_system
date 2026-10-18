@@ -247,7 +247,7 @@ def test_default_configuration_is_the_safe_one(tmp_path):
     app = create_app({"TESTING": True, "SECRET_KEY": "k", "DATABASE_PATH": str(tmp_path / "s.db")})
     assert app.config["EYE_FALLBACK_ENABLED"] is False
     assert app.config["TERMINAL_ADDRESSES"] == ["127.0.0.1", "::1"]
-    assert app.config["FACE_THRESHOLD"] == 0.55
+    assert app.config["FACE_THRESHOLD"] == 0.5
 
 
 def test_deny_helper_uses_the_standard_messages():

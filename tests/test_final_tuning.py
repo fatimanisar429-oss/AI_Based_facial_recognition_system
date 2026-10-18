@@ -102,3 +102,22 @@ def test_mail_connection_has_a_timeout(tmp_path):
     app = _app(tmp_path, MAIL_TIMEOUT=7)
     assert app.config["MAIL_TIMEOUT"] == 7
     assert app.extensions["mail"].timeout == 7
+
+
+# ---------- enrollment duplicate check is stricter than the gate ----------
+
+def test_duplicate_check_has_its_own_stricter_threshold(tmp_path):
+    app = _app(tmp_path)
+    assert app.config["DUPLICATE_FACE_THRESHOLD"] < app.config["FACE_THRESHOLD"]
+
+
+def test_a_different_student_half_a_unit_away_is_not_called_a_duplicate(tmp_path):
+    from app.services import biometrics
+    app = _app(tmp_path)
+    other = np.zeros(128)
+    new_face = np.zeros(128)
+    new_face[0] = 0.47                                            # like two real students on our webcam (0.47-0.6 apart)
+    assert biometrics.find_duplicate_in({1: [other]}, [new_face], app.config["DUPLICATE_FACE_THRESHOLD"]) is None
+    same_person = np.zeros(128)
+    same_person[0] = 0.2
+    assert biometrics.find_duplicate_in({1: [other]}, [same_person], app.config["DUPLICATE_FACE_THRESHOLD"])[0] == 1

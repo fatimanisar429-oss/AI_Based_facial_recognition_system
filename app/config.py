@@ -55,7 +55,10 @@ class Config:
     BIOMETRIC_KEY = os.environ.get("BIOMETRIC_KEY", "")
 
     # Recognition thresholds (tuned in Phase 7)
-    FACE_THRESHOLD = float(os.environ.get("FACE_THRESHOLD", "0.55"))
+    FACE_THRESHOLD = float(os.environ.get("FACE_THRESHOLD", "0.5"))
+    # "Is this face already enrolled for someone else?" is checked more strictly than the gate: two different students on our
+    # webcam measured only 0.57 apart, so using the gate threshold wrongly called a new student a duplicate.
+    DUPLICATE_FACE_THRESHOLD = float(os.environ.get("DUPLICATE_FACE_THRESHOLD", "0.4"))
 
     # --- Entry verification (Phase 7) ---
     # Who may use the entry terminal without logging in. Only the gate computer itself by default (SRS 3.3).
