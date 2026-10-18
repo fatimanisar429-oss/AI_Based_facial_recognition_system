@@ -233,8 +233,7 @@ body { background: var(--bg); color: var(--ink); }
 .kiosk-brand { display: flex; align-items: center; gap: .7rem; font-weight: 600; font-size: 1.1rem; }
 .kiosk-clock { color: #cfd8e6; }
 .kiosk-clock strong { color: #fff; font-size: 1.2rem; margin-left: .4rem; }
-.kiosk-staff { color: #8fa3bf; font-size: .85rem; text-decoration: none; }
-.kiosk-staff:hover { color: #fff; }
+.kiosk-staff { font-size: .9rem; white-space: nowrap; }
 .kiosk-main { flex: 1; display: grid; grid-template-columns: 1fr; gap: 1.25rem; padding: 1.25rem; max-width: 1200px; width: 100%; margin: 0 auto; }
 @media (min-width: 992px) { .kiosk-main { grid-template-columns: 1.3fr 1fr; align-items: start; } }
 .kiosk-start { width: 100%; margin-top: 1rem; padding: 1rem; font-size: 1.25rem; }

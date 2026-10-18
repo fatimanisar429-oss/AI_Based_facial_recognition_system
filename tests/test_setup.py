@@ -11,9 +11,17 @@ def test_health_ok(client):
     assert resp.get_json() == {"status": "ok"}
 
 
-def test_home_redirects_to_login(client):
-    resp = client.get("/")
+def test_home_opens_the_entry_terminal_on_the_gate_computer(client):
+    resp = client.get("/")                                       # the test client is 127.0.0.1, the gate computer
+    assert resp.status_code == 302 and "/terminal/" in resp.headers["Location"]
+    page = client.get("/terminal/").get_data(as_text=True)
+    assert "Staff login" in page and 'href="/login"' in page     # the button that leads to the Admin / Warden login
+
+
+def test_home_sends_other_computers_to_the_login_page(client):
+    resp = client.get("/", environ_overrides={"REMOTE_ADDR": "192.168.1.50"})
     assert resp.status_code == 302 and "/login" in resp.headers["Location"]
+    assert client.get("/terminal/", environ_overrides={"REMOTE_ADDR": "192.168.1.50"}).status_code == 403
 
 
 def test_all_tables_created(app):

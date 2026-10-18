@@ -1,5 +1,5 @@
 """Application factory: builds and configures the Flask app."""
-from flask import Flask, g, jsonify, redirect, url_for
+from flask import Flask, g, jsonify, redirect, request, url_for
 
 from . import cli, db, navigation, security
 from .services import emailer, scheduler
@@ -60,6 +60,9 @@ def create_app(test_config=None):
     def home():
         if g.user:
             return redirect(security.dashboard_url(g.user["role"]))
+        # The first page is the entry terminal, but only on the gate computer (the terminal refuses every other machine).
+        if request.remote_addr in app.config["TERMINAL_ADDRESSES"]:
+            return redirect(url_for("terminal.index"))
         return redirect(url_for("auth.login"))
 
     scheduler.init_scheduler(app)          # weekly report + email queue (not in tests, once per process)
