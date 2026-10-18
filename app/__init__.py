@@ -58,11 +58,12 @@ def create_app(test_config=None):
 
     @app.get("/")
     def home():
-        if g.user:
-            return redirect(security.dashboard_url(g.user["role"]))
-        # The first page is the entry terminal, but only on the gate computer (the terminal refuses every other machine).
+        # The first page is the entry terminal, even if someone is still logged in, but only on the gate computer
+        # (the terminal refuses every other machine). Staff reach their dashboard with the "Staff login" button.
         if request.remote_addr in app.config["TERMINAL_ADDRESSES"]:
             return redirect(url_for("terminal.index"))
+        if g.user:
+            return redirect(security.dashboard_url(g.user["role"]))
         return redirect(url_for("auth.login"))
 
     scheduler.init_scheduler(app)          # weekly report + email queue (not in tests, once per process)

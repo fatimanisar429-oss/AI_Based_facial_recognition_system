@@ -221,3 +221,11 @@ def test_create_admin_rejects_short_password_and_duplicates(app, users):
     dup = runner.invoke(args=["create-admin", "--name", "B", "--email", "admin@x.com",
                               "--phone", "1", "--password", "longenough1"])
     assert dup.exit_code != 0
+
+
+def test_gate_computer_home_is_the_terminal_even_when_logged_in(client, users):
+    login(client, "admin@x.com")
+    assert "/terminal/" in client.get("/").headers["Location"]
+    assert "My dashboard" in client.get("/terminal/").get_data(as_text=True)
+    other = client.get("/", environ_overrides={"REMOTE_ADDR": "192.168.1.50"})
+    assert "/admin" in other.headers["Location"]                  # other computers still go to their dashboard

@@ -11,7 +11,7 @@
   <header class="kiosk-bar">
     <div class="kiosk-brand">{{ logo(34) }}<span>Hostel Entry Terminal</span></div>
     <div class="kiosk-clock" aria-live="off"><span id="clock-date"></span> <strong id="clock-time"></strong></div>
-    <a class="btn btn-outline-light btn-sm kiosk-staff" href="{{ url_for('auth.login') }}">{{ icon('log-in', 16) }} Staff login (Admin / Warden)</a>
+    <a class="btn btn-outline-light btn-sm kiosk-staff" href="{{ url_for('auth.login') }}">{{ icon('log-in', 16) }} {{ 'My dashboard' if g.user else 'Staff login (Admin / Warden)' }}</a>
   </header>
 
   {% if key_problem %}
